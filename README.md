@@ -48,3 +48,5 @@ npm run dev
 ```
 
 Copie `.env.example` para `.env.local` e informe somente a URL do projeto e a chave publicável/anon do Supabase. Nunca informe a `service_role` no frontend.
+
+O comando `npm run build` gera `dist/` e também copia o `index.html` compilado e os assets para a raiz do repositório. Assim, o GitHub Pages configurado para publicar o ramo `main` pela raiz consegue localizar a entrada estática da aplicação.

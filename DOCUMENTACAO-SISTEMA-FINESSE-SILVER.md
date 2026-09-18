@@ -24,6 +24,8 @@
 
 > **Revisão 13 — 18/09/2026:** criada a fundação do frontend em React/Vite. A primeira tela contém login master com senha, validação TOTP, recuperação por e-mail, sessão persistente e um dashboard inicial conectado somente à chave publicável do Supabase. Dados do painel usam estado vazio ou consultas reais; nenhum número fictício foi criado. Módulos de pedidos, clientes, estoque, financeiro e conteúdo ficaram como pontos de navegação sem operações até a definição de cada tela.
 
+> **Revisão 14 — 18/09/2026:** ajustada a publicação estática para o GitHub Pages. O código-fonte HTML fica em `src/index.html`, o Vite compila os arquivos em `dist/` e o script de build copia o `index.html` compilado e os assets para a raiz do repositório. Os caminhos dos assets usam `./`, compatível com domínio próprio e com publicação em subpasta do GitHub Pages.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1200,6 +1202,9 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - `src/app/AuthScreen.jsx`: login, MFA e recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
 - `src/styles.css`: identidade visual e responsividade.
+- `src/index.html`: entrada-fonte usada pelo Vite.
+- `index.html` e `assets/`: saída estática compilada para leitura direta pelo GitHub Pages.
+- `scripts/publish-root.mjs`: copia a saída compilada para a raiz após `npm run build`.
 - `npm run build`: compilação aprovada.
 - `npm test`: nove testes de segurança aprovados após a criação do frontend.
 
