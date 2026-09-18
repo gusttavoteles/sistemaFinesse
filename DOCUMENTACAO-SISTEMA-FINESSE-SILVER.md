@@ -8,6 +8,8 @@
 
 > **Revisão 04 — 18/09/2026:** infraestrutura inicial informada pelo proprietário: projeto Supabase `rswbuqkwdwttylppnhcw` e repositório GitHub `gusttavoteles/sistemaFinesse`. A inspeção encontrou um protótipo antigo de conteúdo em `index.html`, um `README.md` e quatro commits. A limpeza do repositório ainda não foi executada porque é necessário definir se o histórico será preservado.
 
+> **Revisão 05 — 18/09/2026:** definida a ordem de implementação: começar pela fundação do backend no Supabase e construir em seguida a primeira funcionalidade completa de cobrança parcelada, incluindo sua interface. O dashboard e as integrações externas serão construídos depois que existirem dados reais para exibir.
+
 ## 1. Visão do produto
 
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
@@ -993,8 +995,63 @@ Para evitar alterações acidentais nas regras de negócio:
 6. Decisões ainda não confirmadas devem permanecer em **Decisões em aberto** e não devem ser tratadas como regra definitiva.
 7. O arquivo deve ser atualizado no mesmo commit da mudança de código correspondente.
 
-## 15. Recomendação final
+## 15. Ordem oficial de implementação
 
-Começar por um protótipo funcional com dados fictícios e quatro fluxos completos: cadastrar produto, registrar pedido online, registrar entrada ou saída financeira e consultar o dashboard. Em seguida, conectar o Supabase, ativar autenticação e RLS, e só então migrar dados reais.
+### Etapa 1 — Decisões finais
 
-Essa ordem valida a operação da loja antes de investir em integrações e automações.
+- confirmar se os pedidos serão cadastrados manualmente no início;
+- confirmar estoque por peça, peso ou ambos;
+- definir quando o pedido baixa o estoque;
+- definir quando o pagamento vira entrada financeira;
+- definir regra para vencimentos em meses sem o dia escolhido;
+- confirmar que o WhatsApp será manual no MVP;
+- confirmar que publicações do Instagram terão aprovação humana.
+
+### Etapa 2 — Fundação backend
+
+- criar migrations PostgreSQL;
+- criar tabelas de usuários, clientes, cobranças, parcelas e financeiro;
+- configurar autenticação Supabase;
+- configurar políticas RLS;
+- criar categorias financeiras padrão;
+- criar dados de demonstração;
+- configurar Storage somente quando as imagens de produtos forem implementadas.
+
+### Etapa 3 — Primeira funcionalidade completa
+
+Construir o módulo de cobrança de ponta a ponta:
+
+- cadastro de cliente;
+- cadastro do acordo de pagamento;
+- geração automática das parcelas;
+- contador de dias para vencimento e atraso;
+- mensagem personalizada;
+- copiar mensagem;
+- abrir WhatsApp com mensagem preenchida;
+- registrar contato;
+- registrar pagamento;
+- atualizar o financeiro.
+
+### Etapa 4 — Frontend base e operação
+
+- layout autenticado;
+- menu e navegação;
+- dashboard com dados reais;
+- pedidos online;
+- produtos e estoque;
+- controle financeiro;
+- clientes e fornecedores.
+
+### Etapa 5 — Integrações e melhorias
+
+- seleção automática de produtos para Instagram;
+- calendário semanal;
+- publicação oficial no Instagram;
+- importação de pedidos;
+- WhatsApp Business Platform, somente se houver necessidade e orçamento.
+
+## 16. Recomendação final
+
+Não começar pelo dashboard, porque ele depende das tabelas e dos fluxos que ainda não existem. Também não começar pela integração do Instagram ou do WhatsApp, porque são dependências externas.
+
+O primeiro desenvolvimento deve ser o backend do módulo de cobranças, acompanhado imediatamente pela tela correspondente. Assim validamos banco, regras, permissões e experiência de uso em uma funcionalidade real antes de expandir o sistema.
