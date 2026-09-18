@@ -12,6 +12,8 @@
 
 > **Revisão 06 — 18/09/2026:** decisões confirmadas pelo proprietário: estoque controlado por peça; pedidos cadastrados manualmente; baixa do estoque quando o pedido for marcado como vendido; pagamentos lançados no financeiro quando informados como recebidos, podendo ser parciais ou totais; vencimento definido pelo dia escolhido para pagamento; WhatsApp manual no MVP.
 
+> **Revisão 07 — 18/09/2026:** criada a primeira base real do backend em `supabase/migrations/20260918000100_initial_backend.sql`, com tabelas, relacionamentos, funções de negócio, views e RLS. Também foram criados `supabase/seed.sql`, `supabase/README.md` e `.env.example`. A migration ainda precisa ser aplicada no projeto Supabase pelo SQL Editor ou CLI.
+
 ## 1. Visão do produto
 
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
@@ -1055,3 +1057,40 @@ Construir o módulo de cobrança de ponta a ponta:
 Não começar pelo dashboard, porque ele depende das tabelas e dos fluxos que ainda não existem. Também não começar pela integração do Instagram ou do WhatsApp, porque são dependências externas.
 
 O primeiro desenvolvimento deve ser o backend do módulo de cobranças, acompanhado imediatamente pela tela correspondente. Assim validamos banco, regras, permissões e experiência de uso em uma funcionalidade real antes de expandir o sistema.
+
+## 17. Backend implementado
+
+### 17.1 Migration inicial
+
+A migration inicial contém:
+
+- perfis e papéis de usuário;
+- configurações da loja;
+- categorias, fornecedores, produtos e imagens;
+- clientes;
+- pedidos manuais e itens;
+- pagamentos de pedidos;
+- movimentações de estoque por peça;
+- contas, categorias e transações financeiras;
+- acordos, parcelas e pagamentos de cobranças;
+- fila de conteúdo do Instagram;
+- auditoria;
+- índices básicos;
+- funções para marcar pedido como vendido;
+- funções para registrar pagamentos parciais ou totais;
+- views para saldo de estoque e resumo das parcelas;
+- RLS para acesso autenticado.
+
+### 17.2 Regras mantidas no banco
+
+As operações que podem gerar inconsistência ficam centralizadas em funções PostgreSQL:
+
+- marcar pedido como vendido valida o estoque e cria as saídas;
+- registrar pagamento atualiza o status e cria a entrada financeira;
+- registrar pagamento de parcela atualiza a parcela e cria a entrada financeira;
+- criação de acordo gera as parcelas automaticamente;
+- itens do pedido recalculam subtotal e total.
+
+### 17.3 Aplicação no Supabase
+
+O passo operacional seguinte é aplicar a migration pelo SQL Editor do projeto e executar o seed. O procedimento está documentado em `supabase/README.md`. Nenhuma chave privada deve ser adicionada ao GitHub.

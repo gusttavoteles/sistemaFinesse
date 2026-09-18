@@ -29,4 +29,13 @@ O sistema não terá abertura ou fechamento de caixa, caixa por turno, leitor de
 - GitHub para versionamento;
 - publicação inicial como frontend estático.
 
-O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema.
+## Backend inicial
+
+O backend está documentado e versionado em:
+
+- `supabase/migrations/20260918000100_initial_backend.sql` — estrutura, regras e RLS;
+- `supabase/seed.sql` — dados padrão para desenvolvimento;
+- `supabase/README.md` — instruções para aplicar a migration;
+- `.env.example` — variáveis públicas necessárias para conectar o frontend.
+
+O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema. O frontend será criado depois que o proprietário definir a interface desejada.
