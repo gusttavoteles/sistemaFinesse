@@ -14,6 +14,8 @@
 
 > **Revisão 07 — 18/09/2026:** criada a primeira base real do backend em `supabase/migrations/20260918000100_initial_backend.sql`, com tabelas, relacionamentos, funções de negócio, views e RLS. Também foram criados `supabase/seed.sql`, `supabase/README.md` e `.env.example`. A migration ainda precisa ser aplicada no projeto Supabase pelo SQL Editor ou CLI.
 
+> **Revisão 08 — 18/09/2026:** a base do backend foi validada localmente. Foram confirmadas 19 tabelas públicas, RLS habilitado em todas, funções de venda/pagamento/cobrança, geração de parcelas, regra de vencimento no último dia do mês e seed inicial. A aplicação remota permanece pendente de autenticação no dashboard do Supabase; não foram versionadas chaves privadas.
+
 ## 1. Visão do produto
 
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
