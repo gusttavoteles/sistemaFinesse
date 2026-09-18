@@ -28,13 +28,7 @@ Enquanto o Supabase CLI não estiver configurado na máquina, a migration pode s
 5. Executar e verificar se não houve erro.
 6. Executar o conteúdo de `supabase/seed.sql` em uma segunda query.
 
-Em seguida, criar o primeiro usuário em **Authentication**. O trigger criará o perfil com papel `operator`. Para transformar o primeiro usuário em administrador, executar no SQL Editor, substituindo o e-mail:
-
-```sql
-update public.profiles
-set role = 'admin'
-where email = 'seu-email@exemplo.com';
-```
+Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra atual exige dois masters pré-autorizados e MFA. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite, confirmar o e-mail e cadastrar/verificar TOTP antes do acesso. Alterar somente `profiles.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
 
 ## Estado remoto validado
 
@@ -49,6 +43,8 @@ As operações sensíveis devem usar as funções do banco:
 - `public.record_installment_payment(...)` — registra pagamento parcial ou total de uma parcela e cria a entrada financeira.
 
 Isso mantém as regras de negócio no backend e evita que cada tela implemente uma versão diferente do mesmo fluxo.
+
+Após a migration de segurança, pagamentos exigem também `p_request_id` (UUID estável por operação/retry). Escrita direta nas tabelas de pagamentos e financeiro é proibida. Ajustes usam `adjust_stock` e despesas usam `record_expense`. Executar `npm ci --ignore-scripts` e `npm test` para testes PostgreSQL locais. Ver a seção 18 da documentação central para evidências, configuração Auth, recuperação e pendências de publicação.
 
 ## Segurança
 

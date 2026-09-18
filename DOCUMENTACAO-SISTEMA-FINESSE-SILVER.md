@@ -20,6 +20,8 @@
 
 ## 1. Visão do produto
 
+> **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
+
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
 
 O foco inicial não é substituir a plataforma da loja online. O sistema deve registrar ou importar os pedidos realizados na loja e dar à proprietária uma visão confiável de:
@@ -36,10 +38,10 @@ O foco inicial não é substituir a plataforma da loja online. O sistema deve re
 
 | Perfil | Necessidades | Acesso inicial |
 | --- | --- | --- |
-| Administrador | Configurar o sistema, acompanhar resultados e corrigir cadastros | Completo |
-| Gerente | Acompanhar pedidos, estoque, financeiro e relatórios | Quase completo |
-| Operador(a) | Registrar pedidos, clientes e movimentações autorizadas | Pedidos, clientes e consulta de estoque |
-| Financeiro | Controlar entradas, saídas, bancos e despesas | Financeiro e relatórios |
+| Master 1 | Operar e administrar a loja | Todas as operações permitidas, com MFA |
+| Master 2 | Operar e administrar a loja | Mesmos direitos do Master 1, com MFA |
+
+A administração da infraestrutura permanece separada do acesso operacional. Nenhum master pode contornar regras financeiras, editar auditoria ou cadastrar um terceiro usuário pelo aplicativo. O valor técnico `admin` permanece no enum por compatibilidade; a autorização depende da lista privada de dois usuários, não apenas desse valor.
 
 ### 1.2 Princípios do sistema
 
@@ -1110,3 +1112,61 @@ A estrutura e o seed inicial já foram validados no projeto remoto `finesse-silv
 - teste de parcelas: dia 31 ajustado para 28/02;
 - teste de total do pedido: 2 × R$ 100,00 − R$ 10,00 = R$ 190,00;
 - rollback confirmado: nenhum dado de teste permaneceu.
+
+## 18. Segurança — decisão oficial para dois masters
+
+Esta seção substitui permissões antigas incompatíveis com o acesso exclusivo dos dois masters. Referências: [OWASP ASVS](https://owasp.org/projects/asvs), [Supabase produção](https://supabase.com/docs/guides/deployment/going-into-prod), [MFA TOTP](https://supabase.com/docs/guides/auth/auth-mfa/totp), [sessões](https://supabase.com/docs/guides/auth/sessions). Não representa certificação de segurança.
+
+### 18.1 Controles de acesso e sessão
+
+- Somente dois slots privados (1 e 2), associados a e-mails normalizados e UUIDs do Auth. Os e-mails reais não entram no repositório público.
+- Lista vazia significa acesso negado a todos. Provisionamento exclusivamente administrativo pelo SQL Editor usando `supabase/operations/provision-masters.sql`; nenhuma função pública promove usuários.
+- Novo usuário fora da lista é rejeitado pelo trigger do Auth. Cadastro público e anônimo devem permanecer desativados no provedor, como segunda camada.
+- Ambos os masters precisam confirmar o e-mail e cadastrar/verificar MFA TOTP. A verificação do segundo fator é feita pelo próprio proprietário; nenhum segredo TOTP é solicitado pelo assistente.
+- Todas as tabelas exigem usuário autorizado, perfil ativo, e-mail correspondente, sessão existente e nível AAL2. Conhecer a chave publicável não autoriza acesso.
+- Sessões do aplicativo ficam limitadas a 8 horas pela autorização no banco; novo login é necessário após esse período. Remover a sessão, desativar o perfil ou revogar o slot bloqueia a próxima consulta, mesmo com JWT antigo. Isso não depende da opção paga de duração de sessão do provedor.
+- Logout deve revogar a sessão e limpar estado local. Dados já vistos/baixados não podem ser recolhidos. Bloqueio por inatividade na interface será implementado no frontend; não está ativo ainda.
+- Senha mínima de 12 caracteres, única por conta; recuperação por e-mail verificado e redirecionamento exato para URL autorizada. MFA também nas contas da infraestrutura GitHub/Supabase é tarefa dos titulares.
+
+### 18.2 Integridade e auditoria
+
+- Pagamentos e lançamentos financeiros não aceitam escrita direta pela API. Usar RPCs transacionais e `p_request_id` UUID único por ação, preservado nos retries. Mesmo ID com valores diferentes é rejeitado; retries iguais retornam o resultado original. Data omitida usa o horário da primeira gravação.
+- Pagamentos validam valor positivo, finito, com duas casas decimais, saldo restante e conta ativa. O pagamento parcial entra no financeiro somente pelo valor recebido. Receber não marca automaticamente a venda.
+- Venda mantém bloqueio de pedido e produtos; movimentações de estoque passam pelo mesmo bloqueio por produto. Repetir a venda já marcada `sold` não baixa novamente. Testes simultâneos em múltiplas conexões ainda são necessários antes de produção.
+- Itens e valores de pedidos com venda/pagamento ficam protegidos; status e totais não podem ser forjados pela API. Ajuste de estoque usa RPC com motivo e registro compensatório, preservando histórico.
+- Acordos têm até 120 parcelas, de pelo menos R$ 0,01. Divisão trunca as parcelas regulares e coloca o resto na última para preservar centavos. Primeiro vencimento deve corresponder ao dia escolhido (ou último dia do mês). A regra de mês menor continua a regra anteriormente documentada.
+- Pagamento integral de todas as parcelas conclui o acordo. Parcelas geradas não podem ser alteradas diretamente. Estorno, renegociação e cancelamento precisam de fluxo transacional próprio antes de serem disponibilizados na interface.
+- Triggers registram autor, horário, operação, entidade e valores/status relevantes. Auditoria não aceita inserção, alteração ou exclusão pelo aplicativo e não duplica nomes, telefones, documentos ou observações pessoais. Administradores da infraestrutura continuam tecnicamente privilegiados.
+- RPCs internas ficam no schema privado; funções públicas recebem somente permissões necessárias e search_path fixo. O nome técnico legado `admin` não concede acesso sem a lista privada e MFA.
+
+### 18.3 Frontend e hospedagem — requisitos de liberação
+
+O frontend ainda não existe; os controles abaixo são requisitos, não funcionalidades já publicadas:
+
+- HTTPS obrigatório; nenhum segredo administrativo no bundle ou GitHub. Somente URL e chave publicável Supabase no cliente.
+- Renderizar textos como texto; evitar HTML dinâmico, scripts inline e eval. Validar tamanho/formato dos campos e usar consultas parametrizadas. Implementar CSP com origens mínimas e política de referência; proteção CSRF se forem usadas sessões por cookie.
+- Não guardar clientes/pagamentos em cache persistente, URLs, console ou analytics. Limpar dados de tela ao sair. Exibir mensagens de erro sem SQL/tokens/detalhes internos.
+- Sessão expirada/AAL1 deve abrir fluxo de login/MFA, sem carregar dados. Não armazenar senha ou segredo TOTP no frontend.
+- Storage deve permanecer sem buckets públicos de documentos. Uploads exigirão limite de tamanho/tipo e políticas próprias antes da ativação.
+- A configuração de cabeçalhos como CSP, frame-ancestors, HSTS e nosniff deve ser verificada na hospedagem escolhida. GitHub Pages não deve ser considerado automaticamente compatível com todos os cabeçalhos desejados; escolher hospedagem com suporte quando necessário.
+
+### 18.4 Backup, monitoramento e incidentes
+
+- Meta operacional inicial: backup diário criptografado, retenção de 30 dias, cópia separada do projeto e teste mensal de restauração em ambiente isolado. RPO proposto: até 24h; RTO alvo: 1 dia útil, a confirmar após ensaio. Não existe agendamento ativo nem destino de backup definido ainda.
+- Backup precisa abranger dados, schema, políticas, configuração necessária de autenticação e arquivos do Storage, quando existirem. Verificar o escopo das ferramentas de exportação; apenas migrations/seed não recuperam clientes e pagamentos.
+- Não gravar backups ou credenciais no GitHub. Rotação e descarte seguro aplicam-se também aos backups. Não prometer restauração antes de executá-la com sucesso.
+- Workflow de CI executa testes PostgreSQL e verificação de dependências a cada push/PR. Logs do Auth/Supabase e `supabase/operations/security-check.sql` ajudam a revisar acesso, políticas e auditoria. Não há envio automático de alertas operacionais; falta definir canal e serviço para falhas de backup, indisponibilidade e tentativas suspeitas.
+- Incidente: revogar usuário/sessões comprometidos, rotacionar credenciais afetadas, preservar evidências restritas, investigar abrangência, corrigir e verificar recuperação. Avaliar comunicação às pessoas afetadas/ANPD conforme o caso e requisitos aplicáveis.
+
+### 18.5 Privacidade
+
+- Cadastro mínimo: nome e contato necessários à venda/cobrança. CPF, data de nascimento e outros campos opcionais só devem ser coletados com finalidade justificada.
+- Informar finalidade, acesso, compartilhamentos e canal para solicitações antes do uso real. Prazo de retenção de dados comerciais depende das necessidades e obrigações aplicáveis; não foi inventado um prazo universal.
+- Acesso a exportações restrito aos masters. Evitar dados reais nos testes. Mensagens WhatsApp continuam copiadas/enviadas manualmente, com conferência do destinatário.
+
+### 18.6 Evidências e pendências
+
+- Migration `20260918000200_security.sql`: implementação dos controles de banco acima; aplicação remota a registrar após verificação.
+- `npm test`: nove cenários executados em PostgreSQL embarcado PGlite, com esquema Auth simulado. Exercitam RLS e papéis reais do PostgreSQL, bloqueios, retries, valores e centavos; não exercitam a API Auth hospedada, entrega de e-mail ou login TOTP real.
+- Pendentes: informar os dois e-mails, provisionar/confirmar contas, cadastrar TOTP nos dispositivos, testar login e recuperação ponta a ponta, ensaiar concorrência real e restauração, definir backup/alertas e aplicar controles de frontend/hospedagem.
+- Validações históricas da revisão 09 foram smoke tests; não constituíam uma auditoria de autorização. Nenhum status de segurança deve ser marcado concluído apenas porque uma tabela ou política existe.
