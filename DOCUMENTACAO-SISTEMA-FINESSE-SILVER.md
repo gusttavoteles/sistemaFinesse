@@ -16,6 +16,8 @@
 
 > **Revisão 08 — 18/09/2026:** a base do backend foi validada localmente. Foram confirmadas 19 tabelas públicas, RLS habilitado em todas, funções de venda/pagamento/cobrança, geração de parcelas, regra de vencimento no último dia do mês e seed inicial. A aplicação remota permanece pendente de autenticação no dashboard do Supabase; não foram versionadas chaves privadas.
 
+> **Revisão 09 — 18/09/2026:** o projeto Supabase remoto foi autenticado e validado. O schema já existia com 19 tabelas, 13 tipos, 4 funções, 2 views e RLS habilitado nas 19 tabelas; por isso a migration não foi reaplicada nem houve exclusão de dados. O seed foi executado com sucesso, criando/confirmando as configurações da loja, 6 categorias de produtos, 6 categorias financeiras e 2 contas padrão. Testes transacionais de parcelas, total de pedido e rollback passaram.
+
 ## 1. Visão do produto
 
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
@@ -1095,4 +1097,16 @@ As operações que podem gerar inconsistência ficam centralizadas em funções 
 
 ### 17.3 Aplicação no Supabase
 
-O passo operacional seguinte é aplicar a migration pelo SQL Editor do projeto e executar o seed. O procedimento está documentado em `supabase/README.md`. Nenhuma chave privada deve ser adicionada ao GitHub.
+A estrutura e o seed inicial já foram validados no projeto remoto `finesse-silver`. O schema existente foi preservado e o seed idempotente foi executado pelo SQL Editor. O procedimento reproduzível continua documentado em `supabase/README.md`. Nenhuma chave privada deve ser adicionada ao GitHub.
+
+### 17.4 Validação remota concluída
+
+- 19 tabelas públicas encontradas;
+- 13 tipos PostgreSQL encontrados;
+- 4 funções de negócio encontradas;
+- 2 views encontradas;
+- RLS habilitado nas 19 tabelas;
+- seed confirmado: 6 categorias de produtos, 6 categorias financeiras e 2 contas;
+- teste de parcelas: dia 31 ajustado para 28/02;
+- teste de total do pedido: 2 × R$ 100,00 − R$ 10,00 = R$ 190,00;
+- rollback confirmado: nenhum dado de teste permaneceu.

@@ -36,6 +36,10 @@ set role = 'admin'
 where email = 'seu-email@exemplo.com';
 ```
 
+## Estado remoto validado
+
+Em 18/09/2026, o projeto remoto `finesse-silver` já continha o schema correspondente à base inicial. A tentativa de reaplicar a migration foi interrompida pelo próprio banco porque o tipo `public.app_role` já existia; nenhum dado foi apagado. O diagnóstico confirmou 19 tabelas, 13 tipos, 4 funções, 2 views e RLS nas 19 tabelas. O seed foi executado com sucesso e os testes transacionais de parcelas, total do pedido e rollback foram aprovados.
+
 ## Funções de negócio
 
 As operações sensíveis devem usar as funções do banco:
