@@ -10,6 +10,8 @@
 
 > **Revisão 05 — 18/09/2026:** definida a ordem de implementação: começar pela fundação do backend no Supabase e construir em seguida a primeira funcionalidade completa de cobrança parcelada, incluindo sua interface. O dashboard e as integrações externas serão construídos depois que existirem dados reais para exibir.
 
+> **Revisão 06 — 18/09/2026:** decisões confirmadas pelo proprietário: estoque controlado por peça; pedidos cadastrados manualmente; baixa do estoque quando o pedido for marcado como vendido; pagamentos lançados no financeiro quando informados como recebidos, podendo ser parciais ou totais; vencimento definido pelo dia escolhido para pagamento; WhatsApp manual no MVP.
+
 ## 1. Visão do produto
 
 O Finesse Silver será um sistema web interno para auxiliar o controle da loja online: pedidos, produtos, estoque, entradas e saídas financeiras, bancos, despesas, clientes e relatórios.
@@ -524,7 +526,7 @@ Se houver tamanhos ou modelos diferentes com preço/estoque próprio, criar `pro
 - `id`;
 - `product_id` ou `variant_id`;
 - `type` — purchase, sale, return, adjustment_in, adjustment_out, loss;
-- `quantity`;
+- `quantity` — quantidade inteira de peças;
 - `unit_cost`;
 - `reference_type`;
 - `reference_id`;
@@ -532,7 +534,7 @@ Se houver tamanhos ou modelos diferentes com preço/estoque próprio, criar `pro
 - `created_by`;
 - `created_at`.
 
-O estoque atual pode ser calculado pela soma das entradas menos as saídas. Se a escala crescer, pode-se manter uma tabela de saldo materializado, sempre atualizada por uma operação transacional.
+O estoque será controlado exclusivamente por quantidade de peças. O peso em gramas pode ser armazenado como informação do produto, mas não será usado para calcular o saldo. O estoque atual será calculado pela soma das entradas menos as saídas.
 
 ### 5.4 Pedidos
 
@@ -543,7 +545,7 @@ O estoque atual pode ser calculado pela soma das entradas menos as saídas. Se a
 - `source` — online_store, manual ou marketplace;
 - `customer_id` opcional;
 - `created_by`;
-- `status` — pending, confirmed, shipped, completed, canceled, partially_returned, returned;
+- `status` — pending, sold, shipped, completed, canceled, partially_returned, returned;
 - `payment_status` — pending, paid, partially_paid, refunded;
 - `subtotal`;
 - `shipping_amount`;
@@ -561,7 +563,7 @@ O estoque atual pode ser calculado pela soma das entradas menos as saídas. Se a
 - `product_id`;
 - `product_name_snapshot`;
 - `sku_snapshot`;
-- `quantity`;
+- `quantity` — quantidade inteira de peças;
 - `unit_price`;
 - `unit_cost_snapshot`;
 - `discount_amount`;
@@ -711,7 +713,7 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 1. Quando informado, o SKU deve ser único.
 2. Produto inativo não pode ser incluído em novo pedido.
 3. Toda entrada ou saída gera um registro em `inventory_movements`.
-4. Pedido confirmado reduz o estoque; pedido cancelado antes da confirmação não altera o estoque.
+4. Pedido marcado como `sold` reduz o estoque em peças; pedido cancelado antes desse status não altera o estoque.
 5. Uma devolução gera uma movimentação de entrada vinculada ao pedido original.
 6. Ajuste manual exige motivo e registra o usuário responsável.
 7. Pedido abaixo do estoque disponível deve ser bloqueado por padrão.
@@ -720,11 +722,11 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 ### 6.2 Pedidos online
 
-1. Um pedido só pode ser confirmado se tiver pelo menos um item.
-2. A soma dos pagamentos deve ser igual ao total do pedido quando ele estiver marcado como pago.
+1. Um pedido só pode ser marcado como vendido se tiver pelo menos um item.
+2. O pagamento pode ser parcial ou total. O pedido fica pendente, parcialmente pago ou pago conforme a soma dos pagamentos informados.
 3. O desconto não pode deixar o total negativo.
 4. Uma alteração financeira relevante exige gerente ou administrador.
-5. Um pedido pago não deve ser editado diretamente; deve ser cancelado, devolvido ou ajustado por um fluxo específico.
+5. Um pedido vendido ou pago não deve ser editado diretamente; deve ser cancelado, devolvido ou ajustado por um fluxo específico.
 6. O cancelamento deve registrar motivo e usuário.
 7. Pedidos com pagamento em cartão ou Pix devem manter a forma de pagamento mesmo que o produto seja devolvido.
 8. O sistema deve guardar o preço e o custo no momento do pedido para preservar o histórico.
@@ -733,9 +735,10 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 1. Não existe abertura ou fechamento de caixa.
 2. Toda entrada ou saída deve possuir valor, data, categoria e descrição.
-3. Uma entrada originada de pedido deve estar vinculada ao pedido e ao status do pagamento.
-4. Uma saída manual exige motivo e usuário responsável.
-5. Correções devem gerar estorno ou ajuste, preservando o lançamento original.
+3. Uma entrada originada de pedido deve estar vinculada ao pedido e ao valor efetivamente informado como recebido.
+4. O valor recebido pode ser parcial ou total e cada recebimento deve gerar seu próprio lançamento ou vínculo financeiro.
+5. Uma saída manual exige motivo e usuário responsável.
+6. Correções devem gerar estorno ou ajuste, preservando o lançamento original.
 
 ### 6.4 Financeiro e bancos
 
@@ -788,14 +791,14 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 4. O custo atual do produto é atualizado conforme a regra definida.
 5. Se a compra tiver pagamento pendente, é criada uma conta a pagar.
 
-### 7.2 Pedido online
+### 7.2 Pedido manual
 
-1. Operador registra ou importa o pedido da loja online.
+1. Operador registra manualmente o pedido da loja online.
 2. Sistema valida produtos, quantidades e valores.
 3. Operador informa cliente e pagamento.
 4. Sistema grava pedido, itens e pagamentos.
-5. Sistema grava a saída de estoque quando o pedido é confirmado.
-6. Sistema grava a entrada financeira quando o pagamento é recebido.
+5. Sistema grava a saída de estoque quando o pedido é marcado como vendido.
+6. Sistema grava a entrada financeira somente quando o usuário informa que recebeu o pagamento, seja parcial ou total.
 7. Dashboard e relatórios passam a refletir a operação.
 
 ### 7.3 Lançamento financeiro
@@ -896,12 +899,14 @@ Recomendações:
 - confirmar fluxo real da loja;
 - confirmar se haverá uma ou mais lojas;
 - confirmar de qual plataforma vêm os pedidos online;
-- decidir se os pedidos serão cadastrados manualmente ou importados;
+- registrar pedidos manualmente no início;
 - definir formas de pagamento usadas;
 - decidir se o estoque negativo será permitido;
 - escolher categorias e campos obrigatórios;
-- definir o momento em que o pedido baixa o estoque;
-- definir o momento em que o pagamento vira entrada financeira.
+- baixar o estoque quando o pedido for marcado como vendido;
+- registrar no financeiro apenas o valor informado como recebido, parcial ou total;
+- usar o dia escolhido pelo cliente para gerar os vencimentos;
+- usar WhatsApp manual no MVP.
 
 ### Fase 1 — Fundação
 
@@ -951,7 +956,7 @@ O MVP estará pronto quando:
 - um administrador conseguir cadastrar categoria, fornecedor e produto;
 - uma entrada de estoque alterar o saldo disponível;
 - um operador conseguir registrar um pedido online;
-- o pedido confirmado reduzir o estoque corretamente;
+- o pedido marcado como vendido reduzir o estoque em uma peça por unidade;
 - o pagamento refletir no financeiro;
 - uma entrada ou saída manual aparecer no controle financeiro;
 - um acordo gerar todas as parcelas corretamente;
@@ -968,20 +973,16 @@ O MVP estará pronto quando:
 
 Estas decisões não impedem a criação do protótipo, mas devem ser respondidas antes de usar dados reais:
 
-1. Qual é a plataforma atual da loja online?
-2. Os pedidos serão digitados manualmente ou importados?
-3. O estoque será controlado por peça, por peso ou pelos dois?
-4. Em qual status o pedido deve baixar o estoque?
-5. Em qual status o pedido deve gerar entrada financeira?
-6. A loja precisa emitir nota fiscal pelo sistema?
-7. Como serão tratadas trocas, defeitos e garantia?
-8. Haverá comissão por vendedor ou parceiro?
-9. O preço da prata influenciará automaticamente o preço de venda?
-10. A cobrança será apenas copiada manualmente ou haverá orçamento para WhatsApp Business Platform?
-11. A conta do Instagram é profissional (Business ou Creator) e está ligada a uma Página do Facebook?
-12. O conteúdo precisa de aprovação humana antes de publicar?
-13. Qual frequência e quais dias da semana serão usados?
-14. Quais relatórios são indispensáveis para a rotina da proprietária?
+1. Qual é a plataforma atual da loja online, caso exista uma integração futura?
+2. Como serão tratadas trocas, defeitos e garantia?
+3. Haverá comissão por vendedor ou parceiro?
+4. O preço da prata influenciará automaticamente o preço de venda?
+5. A loja precisa emitir nota fiscal pelo sistema?
+6. A conta do Instagram é profissional (Business ou Creator) e está ligada a uma Página do Facebook?
+7. Qual frequência e quais dias da semana serão usados para o Instagram?
+8. Quais relatórios são indispensáveis para a rotina da proprietária?
+
+Regra provisória para vencimentos: o usuário escolherá um dia de 1 a 31. Quando esse dia não existir no mês, a parcela vencerá no último dia daquele mês. Essa regra pode ser alterada antes da migration sem afetar o restante do modelo.
 
 ## 14. Controle de mudanças e documentação
 
@@ -999,13 +1000,12 @@ Para evitar alterações acidentais nas regras de negócio:
 
 ### Etapa 1 — Decisões finais
 
-- confirmar se os pedidos serão cadastrados manualmente no início;
-- confirmar estoque por peça, peso ou ambos;
-- definir quando o pedido baixa o estoque;
-- definir quando o pagamento vira entrada financeira;
-- definir regra para vencimentos em meses sem o dia escolhido;
-- confirmar que o WhatsApp será manual no MVP;
-- confirmar que publicações do Instagram terão aprovação humana.
+- registrar pedidos manualmente no início;
+- usar estoque por peça;
+- baixar estoque quando o pedido for marcado como vendido;
+- registrar no financeiro apenas o valor informado como recebido, parcial ou total;
+- usar WhatsApp manual no MVP;
+- exigir aprovação humana para publicações do Instagram.
 
 ### Etapa 2 — Fundação backend
 
