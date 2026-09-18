@@ -46,6 +46,8 @@ Isso mantém as regras de negócio no backend e evita que cada tela implemente u
 
 Após a migration de segurança, pagamentos exigem também `p_request_id` (UUID estável por operação/retry). Escrita direta nas tabelas de pagamentos e financeiro é proibida. Ajustes usam `adjust_stock` e despesas usam `record_expense`. Executar `npm ci --ignore-scripts` e `npm test` para testes PostgreSQL locais. Ver a seção 18 da documentação central para evidências, configuração Auth, recuperação e pendências de publicação.
 
+No projeto remoto, os dois slots privados de master já estão reservados e o cadastro público foi desativado. As contas Auth ainda não foram criadas; o convite deve ser enviado pelo painel apenas após conferência dos endereços. Depois de cada titular confirmar o e-mail e cadastrar TOTP, executar novamente `supabase/operations/security-check.sql` e confirmar que os dois slots estão vinculados.
+
 ## Segurança
 
 - O frontend usará apenas a URL do projeto e a chave publicável/anon.

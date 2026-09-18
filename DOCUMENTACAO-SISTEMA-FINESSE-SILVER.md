@@ -18,6 +18,8 @@
 
 > **Revisão 09 — 18/09/2026:** o projeto Supabase remoto foi autenticado e validado. O schema já existia com 19 tabelas, 13 tipos, 4 funções, 2 views e RLS habilitado nas 19 tabelas; por isso a migration não foi reaplicada nem houve exclusão de dados. O seed foi executado com sucesso, criando/confirmando as configurações da loja, 6 categorias de produtos, 6 categorias financeiras e 2 contas padrão. Testes transacionais de parcelas, total de pedido e rollback passaram.
 
+> **Revisão 11 — 18/09/2026:** reservados no Supabase remoto os dois slots privados de master, sem armazenar os e-mails no repositório. O cadastro público foi desativado, o login anônimo permanece desativado, a confirmação de e-mail está ativa, a senha mínima foi definida em 12 caracteres e a troca segura de senha foi ativada. A verificação remota confirmou 19 gates de acesso, 18 triggers de auditoria, bloqueio de escrita direta em pagamentos, bloqueio de edição de cargo e ausência de RPC anônima. As contas Auth ainda precisam ser convidadas, confirmadas e vinculadas aos slots pelos próprios titulares.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1169,4 +1171,5 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - Migration `20260918000200_security.sql`: implementação dos controles de banco acima; aplicação remota a registrar após verificação.
 - `npm test`: nove cenários executados em PostgreSQL embarcado PGlite, com esquema Auth simulado. Exercitam RLS e papéis reais do PostgreSQL, bloqueios, retries, valores e centavos; não exercitam a API Auth hospedada, entrega de e-mail ou login TOTP real.
 - Pendentes: informar os dois e-mails, provisionar/confirmar contas, cadastrar TOTP nos dispositivos, testar login e recuperação ponta a ponta, ensaiar concorrência real e restauração, definir backup/alertas e aplicar controles de frontend/hospedagem.
+- Atualização remota: os dois e-mails já foram reservados nos slots 1 e 2; ainda falta criar/convidar as contas Auth, confirmar os e-mails, vincular os UUIDs e cadastrar/verificar o TOTP de cada titular.
 - Validações históricas da revisão 09 foram smoke tests; não constituíam uma auditoria de autorização. Nenhum status de segurança deve ser marcado concluído apenas porque uma tabela ou política existe.
