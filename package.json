@@ -1,7 +1,21 @@
 {
-  "name": "finesse-backend",
+  "name": "finesse-silver",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test tests/security.test.mjs" },
-  "devDependencies": { "@electric-sql/pglite": "0.3.14" }
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/security.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@vitejs/plugin-react": "^5.0.2",
+    "vite": "^7.1.3"
+  }
 }

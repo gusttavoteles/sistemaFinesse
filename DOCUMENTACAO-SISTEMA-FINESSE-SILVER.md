@@ -22,6 +22,8 @@
 
 > **Revisão 12 — 18/09/2026:** esclarecido o limite de confiança entre frontend e backend: o navegador pode conhecer a URL e a chave publicável/anon do Supabase, mas não recebe a `service_role`, senhas, TOTP ou credenciais administrativas. A chave publicável permite chamadas à API, não acesso aos dados; RLS, autenticação master, sessão AAL2 e as permissões do banco fazem a decisão final. O frontend será considerado cliente não confiável e deverá ser validado antes da publicação.
 
+> **Revisão 13 — 18/09/2026:** criada a fundação do frontend em React/Vite. A primeira tela contém login master com senha, validação TOTP, recuperação por e-mail, sessão persistente e um dashboard inicial conectado somente à chave publicável do Supabase. Dados do painel usam estado vazio ou consultas reais; nenhum número fictício foi criado. Módulos de pedidos, clientes, estoque, financeiro e conteúdo ficaram como pontos de navegação sem operações até a definição de cada tela.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1178,3 +1180,34 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - Pendentes: informar os dois e-mails, provisionar/confirmar contas, cadastrar TOTP nos dispositivos, testar login e recuperação ponta a ponta, ensaiar concorrência real e restauração, definir backup/alertas e aplicar controles de frontend/hospedagem.
 - Atualização remota: os dois e-mails já foram reservados nos slots 1 e 2; ainda falta criar/convidar as contas Auth, confirmar os e-mails, vincular os UUIDs e cadastrar/verificar o TOTP de cada titular.
 - Validações históricas da revisão 09 foram smoke tests; não constituíam uma auditoria de autorização. Nenhum status de segurança deve ser marcado concluído apenas porque uma tabela ou política existe.
+
+## 19. Fundação do frontend
+
+### 19.1 Decisões da primeira implementação
+
+- Stack: React 19, Vite e `@supabase/supabase-js`.
+- Cliente Supabase criado somente quando `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` existem. O build não contém nem solicita `service_role`.
+- Login por senha usa `signInWithPassword`. Quando o Auth indicar segundo fator, a interface cria desafio TOTP e somente libera a sessão após `mfa.verify`.
+- Recuperação de senha usa o fluxo nativo do Supabase, sem armazenar senha, token ou TOTP no navegador.
+- O dashboard consulta contagens e parcelas pendentes reais; enquanto não houver dados, apresenta `—` e estados vazios, sem dados fictícios.
+- Os módulos ainda não implementados exibem estado de próxima etapa. Não há botões que gravem pedidos, clientes, estoque ou financeiro sem o fluxo de negócio correspondente.
+- O layout inicial é responsivo e usa o idioma português do Brasil. O design visual permanece uma base de trabalho até a aprovação da interface pelo proprietário.
+
+### 19.2 Arquivos e validação
+
+- `index.html`, `vite.config.js` e `src/`: aplicação frontend.
+- `src/lib/supabase.js`: criação segura do cliente publicável.
+- `src/app/AuthScreen.jsx`: login, MFA e recuperação.
+- `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
+- `src/styles.css`: identidade visual e responsividade.
+- `npm run build`: compilação aprovada.
+- `npm test`: nove testes de segurança aprovados após a criação do frontend.
+
+### 19.3 Próxima ordem de construção
+
+1. Aprovar visualmente a base do dashboard.
+2. Construir a tela de clientes e cobrança, incluindo a mensagem manual para WhatsApp.
+3. Construir pedidos manuais e venda com baixa de estoque por peça.
+4. Construir estoque por peça.
+5. Construir financeiro e controle de recebimentos.
+6. Construir conteúdo e agenda do Instagram conforme a decisão de integração.

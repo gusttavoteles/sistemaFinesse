@@ -24,7 +24,7 @@ O sistema não terá abertura ou fechamento de caixa, caixa por turno, leitor de
 
 ## Tecnologias planejadas
 
-- React e TypeScript;
+- React e Vite (JavaScript na primeira fundação; TypeScript pode ser adotado na próxima refatoração);
 - Supabase/PostgreSQL;
 - GitHub para versionamento;
 - publicação inicial como frontend estático.
@@ -38,4 +38,13 @@ O backend está documentado e versionado em:
 - `supabase/README.md` — instruções para aplicar a migration;
 - `.env.example` — variáveis públicas necessárias para conectar o frontend.
 
-O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema. O frontend será criado depois que o proprietário definir a interface desejada.
+O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema. A fundação do frontend está em `src/`, com login master/MFA, dashboard inicial, navegação dos módulos e estados vazios seguros.
+
+## Frontend local
+
+```bash
+npm install
+npm run dev
+```
+
+Copie `.env.example` para `.env.local` e informe somente a URL do projeto e a chave publicável/anon do Supabase. Nunca informe a `service_role` no frontend.
