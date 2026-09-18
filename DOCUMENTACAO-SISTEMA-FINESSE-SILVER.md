@@ -28,6 +28,8 @@
 
 > **Revisão 15 — 18/09/2026:** os convites Auth foram enviados pelo painel do Supabase para os dois e-mails autorizados. O banco confirmou os dois slots habilitados e vinculados aos UUIDs criados. A chave publicável foi configurada somente no `.env.local` ignorado pelo Git e o frontend foi recompilado/publicado; ainda faltam confirmação de e-mail, definição de senha e cadastro do TOTP por cada titular.
 
+> **Revisão 16 — 18/09/2026:** implementado o fluxo de primeiro acesso: convite com `access_token` abre a definição de senha, o primeiro login oferece cadastro TOTP por QR Code e os logins seguintes exigem desafio TOTP. O Vite local usa `http://localhost:3000/`, compatível com o redirecionamento atual do convite. A sessão AAL1 continua invisível para o dashboard até a validação AAL2.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1202,6 +1204,7 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - `index.html`, `vite.config.js` e `src/`: aplicação frontend.
 - `src/lib/supabase.js`: criação segura do cliente publicável.
 - `src/app/AuthScreen.jsx`: login, MFA e recuperação.
+- `src/app/PasswordSetupScreen.jsx`: definição de senha no primeiro acesso por convite ou recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
 - `src/styles.css`: identidade visual e responsividade.
 - `src/index.html`: entrada-fonte usada pelo Vite.

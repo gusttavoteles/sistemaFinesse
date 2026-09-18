@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured, configurationMessage } from '../lib/supabase'
 import { AuthScreen } from './AuthScreen'
 import { Dashboard } from './Dashboard'
+import { PasswordSetupScreen } from './PasswordSetupScreen'
 
 export default function App() {
   const [session, setSession] = useState(null)
+  const [setupSession, setSetupSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
 
@@ -15,9 +17,18 @@ export default function App() {
     }
 
     let active = true
+    const setupFlow = /(?:^|&)type=(?:invite|recovery)(?:&|$)/.test(window.location.hash.replace(/^#/, ''))
     async function gateSession(nextSession) {
       if (!nextSession) {
-        if (active) setSession(null)
+        if (active) {
+          setSession(null)
+          setSetupSession(null)
+        }
+        return
+      }
+      if (setupFlow) {
+        setSetupSession(nextSession)
+        setSession(null)
         return
       }
       const { data: assurance, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
@@ -56,6 +67,7 @@ export default function App() {
 
   if (loading) return <div className="loading-screen"><span className="brand-mark">F</span><p>Carregando Finesse Silver…</p></div>
   if (configIssue) return <AuthScreen configurationError={configurationMessage()} />
+  if (setupSession) return <PasswordSetupScreen />
   if (!session) return <AuthScreen initialError={authError} />
   return <Dashboard session={session} />
 }
