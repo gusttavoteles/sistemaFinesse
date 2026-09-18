@@ -26,6 +26,8 @@
 
 > **Revisão 14 — 18/09/2026:** ajustada a publicação estática para o GitHub Pages. O código-fonte HTML fica em `src/index.html`, o Vite compila os arquivos em `dist/` e o script de build copia o `index.html` compilado e os assets para a raiz do repositório. Os caminhos dos assets usam `./`, compatível com domínio próprio e com publicação em subpasta do GitHub Pages.
 
+> **Revisão 15 — 18/09/2026:** os convites Auth foram enviados pelo painel do Supabase para os dois e-mails autorizados. O banco confirmou os dois slots habilitados e vinculados aos UUIDs criados. A chave publicável foi configurada somente no `.env.local` ignorado pelo Git e o frontend foi recompilado/publicado; ainda faltam confirmação de e-mail, definição de senha e cadastro do TOTP por cada titular.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1179,8 +1181,8 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 
 - Migration `20260918000200_security.sql`: implementação dos controles de banco acima; aplicação remota a registrar após verificação.
 - `npm test`: nove cenários executados em PostgreSQL embarcado PGlite, com esquema Auth simulado. Exercitam RLS e papéis reais do PostgreSQL, bloqueios, retries, valores e centavos; não exercitam a API Auth hospedada, entrega de e-mail ou login TOTP real.
-- Pendentes: informar os dois e-mails, provisionar/confirmar contas, cadastrar TOTP nos dispositivos, testar login e recuperação ponta a ponta, ensaiar concorrência real e restauração, definir backup/alertas e aplicar controles de frontend/hospedagem.
-- Atualização remota: os dois e-mails já foram reservados nos slots 1 e 2; ainda falta criar/convidar as contas Auth, confirmar os e-mails, vincular os UUIDs e cadastrar/verificar o TOTP de cada titular.
+- Pendentes: os titulares devem confirmar os e-mails dos convites, definir as senhas, cadastrar TOTP nos dispositivos e testar login/recuperação ponta a ponta. Também permanecem necessários ensaio de concorrência real e restauração, definição de backup/alertas e aplicação dos controles finais de frontend/hospedagem.
+- Atualização remota: os dois e-mails foram convidados, os slots 1 e 2 estão habilitados e vinculados aos UUIDs Auth. O acesso continuará bloqueado até confirmação de e-mail, sessão AAL2 e TOTP válido.
 - Validações históricas da revisão 09 foram smoke tests; não constituíam uma auditoria de autorização. Nenhum status de segurança deve ser marcado concluído apenas porque uma tabela ou política existe.
 
 ## 19. Fundação do frontend
