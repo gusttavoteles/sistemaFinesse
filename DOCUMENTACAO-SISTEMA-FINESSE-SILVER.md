@@ -20,6 +20,8 @@
 
 > **Revisão 11 — 18/09/2026:** reservados no Supabase remoto os dois slots privados de master, sem armazenar os e-mails no repositório. O cadastro público foi desativado, o login anônimo permanece desativado, a confirmação de e-mail está ativa, a senha mínima foi definida em 12 caracteres e a troca segura de senha foi ativada. A verificação remota confirmou 19 gates de acesso, 18 triggers de auditoria, bloqueio de escrita direta em pagamentos, bloqueio de edição de cargo e ausência de RPC anônima. As contas Auth ainda precisam ser convidadas, confirmadas e vinculadas aos slots pelos próprios titulares.
 
+> **Revisão 12 — 18/09/2026:** esclarecido o limite de confiança entre frontend e backend: o navegador pode conhecer a URL e a chave publicável/anon do Supabase, mas não recebe a `service_role`, senhas, TOTP ou credenciais administrativas. A chave publicável permite chamadas à API, não acesso aos dados; RLS, autenticação master, sessão AAL2 e as permissões do banco fazem a decisão final. O frontend será considerado cliente não confiável e deverá ser validado antes da publicação.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1145,6 +1147,9 @@ Esta seção substitui permissões antigas incompatíveis com o acesso exclusivo
 
 O frontend ainda não existe; os controles abaixo são requisitos, não funcionalidades já publicadas:
 
+- O frontend é público por natureza: qualquer visitante pode baixar JavaScript, descobrir a URL do Supabase e a chave publicável/anon, observar chamadas e tentar repetir requisições. Isso não deve conceder acesso ao backend; toda autorização precisa permanecer no banco e no Auth.
+- A chave publicável/anon não é uma credencial administrativa. A `service_role`, tokens de automação, senhas, TOTP, tokens de convite e qualquer segredo devem permanecer apenas em ambiente administrativo/servidor e nunca no bundle, navegador, GitHub ou logs.
+- O banco remoto foi verificado com RLS nas 19 tabelas, gates restritivos para usuários autenticados, RPCs internas privadas e bloqueios de escrita direta sensível. A proteção depende de esses controles continuarem ativos; esconder endpoints ou código no frontend não é uma camada de segurança.
 - HTTPS obrigatório; nenhum segredo administrativo no bundle ou GitHub. Somente URL e chave publicável Supabase no cliente.
 - Renderizar textos como texto; evitar HTML dinâmico, scripts inline e eval. Validar tamanho/formato dos campos e usar consultas parametrizadas. Implementar CSP com origens mínimas e política de referência; proteção CSRF se forem usadas sessões por cookie.
 - Não guardar clientes/pagamentos em cache persistente, URLs, console ou analytics. Limpar dados de tela ao sair. Exibir mensagens de erro sem SQL/tokens/detalhes internos.
