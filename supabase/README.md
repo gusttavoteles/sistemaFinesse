@@ -28,9 +28,10 @@ Enquanto o Supabase CLI não estiver configurado na máquina, a migration pode s
 5. Executar e verificar se não houve erro.
 6. Executar o conteúdo de `supabase/seed.sql` em uma segunda query.
 
-Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra atual exige dois masters pré-autorizados e MFA. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite, confirmar o e-mail e cadastrar/verificar TOTP antes do acesso. Alterar somente `profiles.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
+Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra exige dois masters pré-autorizados. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite e confirmar o e-mail antes do acesso. Alterar somente `profiles.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
 
-Depois aplicar `supabase/migrations/20260918000300_mvp_operations.sql`. Essa migration adiciona o registro de contato de parcelas, a entrada financeira manual segura e o bucket privado `product-images`, com políticas subordinadas ao gate de master/MFA. O bucket não é público; as imagens são lidas pelo frontend por URL assinada.
+Depois aplicar `supabase/migrations/20260918000300_mvp_operations.sql`. Essa migration adiciona o registro de contato de parcelas, a entrada financeira manual segura e o bucket privado `product-images`, com políticas subordinadas ao gate de master. O bucket não é público; as imagens são lidas pelo frontend por URL assinada.
+Por fim, aplicar `supabase/migrations/20260919000400_remove_mfa_requirement.sql` para remover a exigência de AAL2/MFA do acesso operacional. A lista de masters, o perfil ativo, o e-mail confirmado e a sessão válida continuam obrigatórios.
 
 ## Estado remoto validado
 
@@ -48,7 +49,7 @@ Isso mantém as regras de negócio no backend e evita que cada tela implemente u
 
 Após a migration de segurança, pagamentos exigem também `p_request_id` (UUID estável por operação/retry). Escrita direta nas tabelas de pagamentos e financeiro é proibida. Ajustes usam `adjust_stock` e despesas usam `record_expense`. Executar `npm ci --ignore-scripts` e `npm test` para testes PostgreSQL locais. Ver a seção 18 da documentação central para evidências, configuração Auth, recuperação e pendências de publicação.
 
-No projeto remoto, os dois slots privados de master estão reservados, habilitados e vinculados aos usuários Auth criados pelos convites enviados pelo painel. O cadastro público permanece desativado. Cada titular ainda precisa confirmar o próprio e-mail, definir a senha e cadastrar TOTP; depois, executar novamente `supabase/operations/security-check.sql` e testar o login AAL2.
+No projeto remoto, os dois slots privados de master estão reservados, habilitados e vinculados aos usuários Auth criados pelos convites enviados pelo painel. O cadastro público permanece desativado. Cada titular precisa confirmar o próprio e-mail e definir a senha; depois, executar novamente `supabase/operations/security-check.sql` e testar o login.
 
 ## Segurança
 

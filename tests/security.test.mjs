@@ -26,6 +26,7 @@ await db.exec(`insert into auth.users(id,email,email_confirmed_at) values
   update public.profiles set role='admin';
   insert into auth.sessions(id,user_id) values('${session}','${master}');`);
 await db.exec(await readFile(new URL('../supabase/migrations/20260918000200_security.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260919000400_remove_mfa_requirement.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.master_access(slot,email,user_id) values(1,'master@example.test','${master}');`);
 const account = (await db.query('select id from public.financial_accounts limit 1')).rows[0].id;
 
@@ -55,10 +56,10 @@ test('anonymous cannot read customers or execute payment functions',()=>tx(async
   await denied('select * from public.customers');
   await denied('select public.mark_order_sold(gen_random_uuid())');
 }));
-test('MFA missing or non-master fails closed',()=>tx(async()=>{
+test('non-master fails closed while master can operate without MFA',()=>tx(async()=>{
   await asUser(master,'aal1');
-  assert.equal((await db.query('select public.is_active_staff() ok')).rows[0].ok,false);
-  await denied("insert into public.customers(name) values('Unauthorized')");
+  assert.equal((await db.query('select public.is_active_staff() ok')).rows[0].ok,true);
+  await db.query("insert into public.customers(name) values('Authorized without MFA')");
   await db.exec('reset role'); await asUser(other);
   await denied('select public.mark_order_sold(gen_random_uuid())');
 }));

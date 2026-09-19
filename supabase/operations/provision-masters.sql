@@ -22,4 +22,4 @@ begin
 end $$;
 commit;
 -- Then use Authentication > Users > Invite user for emails not yet registered.
--- Both owners must verify their emails and enroll/verify TOTP themselves.
+-- Both owners must verify their emails before using the application.

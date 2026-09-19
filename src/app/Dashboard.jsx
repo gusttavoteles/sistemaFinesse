@@ -79,7 +79,7 @@ export function Dashboard({ session }) {
         {navigation.map((item) => <button key={item.id} className={active === item.id ? 'nav-item active' : 'nav-item'} onClick={() => setActive(item.id)}><span className="nav-icon">{item.icon}</span>{item.label}</button>)}
       </nav>
       <div className="sidebar-bottom">
-        <div className="security-chip"><span>●</span><div><strong>Ambiente seguro</strong><small>MFA ativo</small></div></div>
+        <div className="security-chip"><span>●</span><div><strong>Acesso autorizado</strong><small>Senha e e-mail confirmado</small></div></div>
         <button className="profile-mini" onClick={logout}><span className="avatar">{initials(profileName)}</span><span><strong>{profileName}</strong><small>Sair do sistema</small></span><span className="logout-icon">↗</span></button>
       </div>
     </aside>

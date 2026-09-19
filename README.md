@@ -34,13 +34,14 @@ O sistema não terá abertura ou fechamento de caixa, caixa por turno, leitor de
 O backend está documentado e versionado em:
 
 - `supabase/migrations/20260918000100_initial_backend.sql` — estrutura, regras e RLS;
-- `supabase/migrations/20260918000200_security.sql` — gates de master/MFA e operações idempotentes;
+- `supabase/migrations/20260918000200_security.sql` — gates de master e operações idempotentes;
 - `supabase/migrations/20260918000300_mvp_operations.sql` — imagens privadas, contato de cobrança e lançamentos financeiros manuais;
+- `supabase/migrations/20260919000400_remove_mfa_requirement.sql` — remoção da exigência de MFA, mantendo master ativo e sessão válida;
 - `supabase/seed.sql` — dados padrão para desenvolvimento;
 - `supabase/README.md` — instruções para aplicar a migration;
 - `.env.example` — variáveis públicas necessárias para conectar o frontend.
 
-O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema. O frontend em `src/` agora possui login master/MFA, dashboard, clientes, produtos/estoque, pedidos, cobranças, financeiro e calendário de conteúdo.
+O protótipo antigo de conteúdo foi removido para iniciar a nova base do sistema. O frontend em `src/` agora possui login master por senha, dashboard, clientes, produtos/estoque, pedidos, cobranças, financeiro e calendário de conteúdo.
 
 ## Frontend local
 

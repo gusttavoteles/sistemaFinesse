@@ -37,16 +37,9 @@ export default function App() {
         setSession(null)
         return
       }
-      const { data: assurance, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-      if (!active) return
-      if (error) {
-        setAuthError('Não foi possível validar o segundo fator de autenticação.')
-        setSession(null)
-        return
-      }
-      const requiresMfa = assurance.currentLevel !== 'aal2' && assurance.nextLevel === 'aal2'
-      // A sessão AAL1 permanece invisível para o restante da aplicação durante o desafio.
-      setSession(requiresMfa ? null : nextSession)
+      // O acesso operacional usa senha, e-mail confirmado, master ativo e sessão válida.
+      // MFA foi desativado; a autorização final continua sendo feita pelo RLS/RPCs.
+      setSession(nextSession)
     }
 
     async function hydrate() {

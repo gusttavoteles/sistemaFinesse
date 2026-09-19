@@ -34,6 +34,8 @@
 
 > **Revisão 21 — 18/09/2026:** ampliada a integração operacional do frontend com Supabase. Foram conectados cadastro de peças/produtos, imagens no bucket privado, ajustes de estoque, pedidos manuais, baixa de estoque por venda, pagamentos de pedidos, contas e lançamentos financeiros, calendário de conteúdo e registro de contato de cobranças. A migration `supabase/migrations/20260918000300_mvp_operations.sql` adiciona as RPCs e permissões necessárias. Integrações automáticas com WhatsApp e Instagram continuam fora do MVP, conforme definido neste documento.
 
+> **Revisão 22 — 19/09/2026:** por decisão do proprietário, o MFA/TOTP foi removido do acesso operacional para destravar o uso do sistema. A migration `supabase/migrations/20260919000400_remove_mfa_requirement.sql` mantém os dois masters, perfil ativo, e-mail confirmado, sessão válida e expiração de oito horas, mas não exige mais AAL2. O frontend agora usa somente e-mail e senha. Essa decisão reduz a proteção contra acesso indevido e deve ser reavaliada antes de ampliar o sistema.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -54,8 +56,8 @@ O foco inicial não é substituir a plataforma da loja online. O sistema deve re
 
 | Perfil | Necessidades | Acesso inicial |
 | --- | --- | --- |
-| Master 1 | Operar e administrar a loja | Todas as operações permitidas, com MFA |
-| Master 2 | Operar e administrar a loja | Mesmos direitos do Master 1, com MFA |
+| Master 1 | Operar e administrar a loja | Todas as operações permitidas, com senha |
+| Master 2 | Operar e administrar a loja | Mesmos direitos do Master 1, com senha |
 
 A administração da infraestrutura permanece separada do acesso operacional. Nenhum master pode contornar regras financeiras, editar auditoria ou cadastrar um terceiro usuário pelo aplicativo. O valor técnico `admin` permanece no enum por compatibilidade; a autorização depende da lista privada de dois usuários, não apenas desse valor.
 
@@ -1138,11 +1140,11 @@ Esta seção substitui permissões antigas incompatíveis com o acesso exclusivo
 - Somente dois slots privados (1 e 2), associados a e-mails normalizados e UUIDs do Auth. Os e-mails reais não entram no repositório público.
 - Lista vazia significa acesso negado a todos. Provisionamento exclusivamente administrativo pelo SQL Editor usando `supabase/operations/provision-masters.sql`; nenhuma função pública promove usuários.
 - Novo usuário fora da lista é rejeitado pelo trigger do Auth. Cadastro público e anônimo devem permanecer desativados no provedor, como segunda camada.
-- Ambos os masters precisam confirmar o e-mail e cadastrar/verificar MFA TOTP. A verificação do segundo fator é feita pelo próprio proprietário; nenhum segredo TOTP é solicitado pelo assistente.
-- Todas as tabelas exigem usuário autorizado, perfil ativo, e-mail correspondente, sessão existente e nível AAL2. Conhecer a chave publicável não autoriza acesso.
+- Ambos os masters precisam confirmar o e-mail. O MFA/TOTP foi removido por decisão do proprietário; o acesso operacional usa somente senha.
+- Todas as tabelas exigem usuário autorizado, perfil ativo, e-mail correspondente e sessão existente dentro da janela de oito horas. Conhecer a chave publicável não autoriza acesso.
 - Sessões do aplicativo ficam limitadas a 8 horas pela autorização no banco; novo login é necessário após esse período. Remover a sessão, desativar o perfil ou revogar o slot bloqueia a próxima consulta, mesmo com JWT antigo. Isso não depende da opção paga de duração de sessão do provedor.
 - Logout deve revogar a sessão e limpar estado local. Dados já vistos/baixados não podem ser recolhidos. Bloqueio por inatividade na interface será implementado no frontend; não está ativo ainda.
-- Senha mínima de 12 caracteres, única por conta; recuperação por e-mail verificado e redirecionamento exato para URL autorizada. MFA também nas contas da infraestrutura GitHub/Supabase é tarefa dos titulares.
+- Senha mínima de 12 caracteres, única por conta; recuperação por e-mail verificado e redirecionamento exato para URL autorizada. MFA nas contas da infraestrutura GitHub/Supabase continua sendo responsabilidade dos titulares, mas não é exigido pelo aplicativo.
 
 ### 18.2 Integridade e auditoria
 
@@ -1153,7 +1155,7 @@ Esta seção substitui permissões antigas incompatíveis com o acesso exclusivo
 - Acordos têm até 120 parcelas, de pelo menos R$ 0,01. Divisão trunca as parcelas regulares e coloca o resto na última para preservar centavos. Primeiro vencimento deve corresponder ao dia escolhido (ou último dia do mês). A regra de mês menor continua a regra anteriormente documentada.
 - Pagamento integral de todas as parcelas conclui o acordo. Parcelas geradas não podem ser alteradas diretamente. Estorno, renegociação e cancelamento precisam de fluxo transacional próprio antes de serem disponibilizados na interface.
 - Triggers registram autor, horário, operação, entidade e valores/status relevantes. Auditoria não aceita inserção, alteração ou exclusão pelo aplicativo e não duplica nomes, telefones, documentos ou observações pessoais. Administradores da infraestrutura continuam tecnicamente privilegiados.
-- RPCs internas ficam no schema privado; funções públicas recebem somente permissões necessárias e search_path fixo. O nome técnico legado `admin` não concede acesso sem a lista privada e MFA.
+- RPCs internas ficam no schema privado; funções públicas recebem somente permissões necessárias e search_path fixo. O nome técnico legado `admin` não concede acesso sem a lista privada e sessão válida.
 
 ### 18.3 Frontend e hospedagem — requisitos de liberação
 
@@ -1165,7 +1167,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - HTTPS obrigatório; nenhum segredo administrativo no bundle ou GitHub. Somente URL e chave publicável Supabase no cliente.
 - Renderizar textos como texto; evitar HTML dinâmico, scripts inline e eval. Validar tamanho/formato dos campos e usar consultas parametrizadas. Implementar CSP com origens mínimas e política de referência; proteção CSRF se forem usadas sessões por cookie.
 - Não guardar clientes/pagamentos em cache persistente, URLs, console ou analytics. Limpar dados de tela ao sair. Exibir mensagens de erro sem SQL/tokens/detalhes internos.
-- Sessão expirada/AAL1 deve abrir fluxo de login/MFA, sem carregar dados. Não armazenar senha ou segredo TOTP no frontend.
+- Sessão expirada deve abrir o fluxo de login, sem carregar dados. Não armazenar senha ou segredo de autenticação no frontend.
 - Storage deve permanecer sem buckets públicos de documentos. Uploads exigirão limite de tamanho/tipo e políticas próprias antes da ativação.
 - A configuração de cabeçalhos como CSP, frame-ancestors, HSTS e nosniff deve ser verificada na hospedagem escolhida. GitHub Pages não deve ser considerado automaticamente compatível com todos os cabeçalhos desejados; escolher hospedagem com suporte quando necessário.
 
@@ -1185,10 +1187,10 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 
 ### 18.6 Evidências e pendências
 
-- Migration `20260918000200_security.sql`: implementação dos controles de banco acima; aplicação remota a registrar após verificação.
+- Migration `20260918000200_security.sql`: implementação dos controles de banco originais; `20260919000400_remove_mfa_requirement.sql` substitui a exigência de AAL2.
 - `npm test`: nove cenários executados em PostgreSQL embarcado PGlite, com esquema Auth simulado. Exercitam RLS e papéis reais do PostgreSQL, bloqueios, retries, valores e centavos; não exercitam a API Auth hospedada, entrega de e-mail ou login TOTP real.
-- Pendentes: os titulares devem confirmar os e-mails dos convites, definir as senhas, cadastrar TOTP nos dispositivos e testar login/recuperação ponta a ponta. Também permanecem necessários ensaio de concorrência real e restauração, definição de backup/alertas e aplicação dos controles finais de frontend/hospedagem.
-- Atualização remota: os dois e-mails foram convidados, os slots 1 e 2 estão habilitados e vinculados aos UUIDs Auth. O acesso continuará bloqueado até confirmação de e-mail, sessão AAL2 e TOTP válido.
+- Pendentes: os titulares devem confirmar os e-mails dos convites, definir as senhas e testar login/recuperação ponta a ponta. Também permanecem necessários ensaio de concorrência real e restauração, definição de backup/alertas e aplicação dos controles finais de frontend/hospedagem.
+- Atualização remota: os dois e-mails foram convidados, os slots 1 e 2 estão habilitados e vinculados aos UUIDs Auth. Após aplicar a migration 004, o acesso depende de confirmação de e-mail, master ativo e sessão válida.
 - Validações históricas da revisão 09 foram smoke tests; não constituíam uma auditoria de autorização. Nenhum status de segurança deve ser marcado concluído apenas porque uma tabela ou política existe.
 
 ## 19. Fundação do frontend
@@ -1197,7 +1199,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 
 - Stack: React 19, Vite e `@supabase/supabase-js`.
 - Cliente Supabase criado somente quando `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` existem. O build não contém nem solicita `service_role`.
-- Login por senha usa `signInWithPassword`. Quando o Auth indicar segundo fator, a interface cria desafio TOTP e somente libera a sessão após `mfa.verify`.
+- Login por senha usa `signInWithPassword`; a aplicação não cria nem exige desafio TOTP.
 - Recuperação de senha usa o fluxo nativo do Supabase, sem armazenar senha, token ou TOTP no navegador.
 - O dashboard consulta contagens e parcelas pendentes reais; enquanto não houver dados, apresenta `—` e estados vazios, sem dados fictícios.
 - Os módulos implementados gravam somente pelas permissões e RPCs previstas; integrações automáticas externas continuam exibindo ações manuais ou estados de aprovação.
@@ -1207,7 +1209,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 
 - `index.html`, `vite.config.js` e `src/`: aplicação frontend.
 - `src/lib/supabase.js`: criação segura do cliente publicável.
-- `src/app/AuthScreen.jsx`: login, MFA e recuperação.
+- `src/app/AuthScreen.jsx`: login por senha e recuperação.
 - `src/app/PasswordSetupScreen.jsx`: definição de senha no primeiro acesso por convite ou recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
 - `src/app/CustomersPage.jsx`: cadastro e busca de clientes.

@@ -63,7 +63,7 @@ grant execute on function public.mark_installment_contacted(uuid) to authenticat
 grant execute on function public.record_income(numeric, uuid, uuid, text, uuid, date) to authenticated;
 
 -- Bucket privado para imagens de produtos. As políticas continuam subordinadas
--- ao gate de master/MFA usado pelas tabelas públicas.
+-- ao gate de master usado pelas tabelas públicas.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('product-images', 'product-images', false, 5242880, array['image/jpeg', 'image/png', 'image/webp']::text[])
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
