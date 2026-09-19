@@ -30,6 +30,8 @@ Enquanto o Supabase CLI não estiver configurado na máquina, a migration pode s
 
 Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra atual exige dois masters pré-autorizados e MFA. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite, confirmar o e-mail e cadastrar/verificar TOTP antes do acesso. Alterar somente `profiles.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
 
+Depois aplicar `supabase/migrations/20260918000300_mvp_operations.sql`. Essa migration adiciona o registro de contato de parcelas, a entrada financeira manual segura e o bucket privado `product-images`, com políticas subordinadas ao gate de master/MFA. O bucket não é público; as imagens são lidas pelo frontend por URL assinada.
+
 ## Estado remoto validado
 
 Em 18/09/2026, o projeto remoto `finesse-silver` já continha o schema correspondente à base inicial. A tentativa de reaplicar a migration foi interrompida pelo próprio banco porque o tipo `public.app_role` já existia; nenhum dado foi apagado. O diagnóstico confirmou 19 tabelas, 13 tipos, 4 funções, 2 views e RLS nas 19 tabelas. O seed foi executado com sucesso e os testes transacionais de parcelas, total do pedido e rollback foram aprovados.
@@ -54,3 +56,5 @@ No projeto remoto, os dois slots privados de master estão reservados, habilitad
 - A `service_role` nunca deve ser colocada no frontend, no GitHub ou em arquivos `.env` enviados ao repositório.
 - O RLS está habilitado nas tabelas públicas.
 - Exclusões físicas não fazem parte do fluxo inicial; correções devem usar status, estorno ou ajuste.
+- O frontend usa as RPCs `record_income`, `record_expense`, `mark_installment_contacted`, `mark_order_sold`, `record_order_payment`, `record_installment_payment` e `adjust_stock` para operações sensíveis.
+- O upload de imagens usa somente o bucket privado `product-images`; não colocar `service_role` no navegador.

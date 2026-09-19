@@ -17,6 +17,12 @@ export default function App() {
     }
 
     let active = true
+    function handlePageShow(event) {
+      // Browsers podem restaurar a aplicação pelo bfcache ao usar Voltar.
+      // Limpar a sessão nesse retorno força uma nova autenticação.
+      if (event.persisted) void supabase.auth.signOut({ scope: 'local' })
+    }
+    window.addEventListener('pageshow', handlePageShow)
     const setupFlow = /(?:^|&)type=(?:invite|recovery)(?:&|$)/.test(window.location.hash.replace(/^#/, ''))
     async function gateSession(nextSession) {
       if (!nextSession) {
@@ -59,6 +65,7 @@ export default function App() {
 
     return () => {
       active = false
+      window.removeEventListener('pageshow', handlePageShow)
       data.subscription.unsubscribe()
     }
   }, [])

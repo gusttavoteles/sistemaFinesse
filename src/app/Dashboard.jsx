@@ -1,18 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { date, initials, money } from '../lib/format'
+import { CustomersPage } from './CustomersPage'
+import { ReceivablesPage } from './ReceivablesPage'
+import { ProductsPage } from './ProductsPage'
+import { OrdersPage } from './OrdersPage'
+import { FinancePage } from './FinancePage'
+import { ContentPage } from './ContentPage'
 
 const navigation = [
   { id: 'dashboard', label: 'Visão geral', icon: '⌂' },
   { id: 'orders', label: 'Pedidos', icon: '▣' },
   { id: 'customers', label: 'Clientes', icon: '♧' },
-  { id: 'inventory', label: 'Estoque', icon: '◇' },
+  { id: 'receivables', label: 'Cobranças', icon: '◷' },
+  { id: 'inventory', label: 'Produtos e estoque', icon: '◇' },
   { id: 'finance', label: 'Financeiro', icon: '◷' },
   { id: 'content', label: 'Conteúdo', icon: '✦' },
 ]
 
 function emptyMetrics() {
-  return { products: null, customers: null, orders: null, receivables: null }
+  return { products: null, customers: null, orders: null, receivables: null, balance: null }
 }
 
 export function Dashboard({ session }) {
@@ -29,7 +36,9 @@ export function Dashboard({ session }) {
         supabase.from('products').select('id', { count: 'exact', head: true }).eq('active', true),
         supabase.from('customers').select('id', { count: 'exact', head: true }).eq('active', true),
         supabase.from('orders').select('id', { count: 'exact', head: true }).neq('status', 'cancelled'),
-        supabase.from('receivable_installments').select('amount').eq('status', 'pending').gte('due_date', new Date().toISOString().slice(0, 10)),
+        supabase.from('receivable_installment_summary').select('amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
+        supabase.from('financial_accounts').select('initial_balance'),
+        supabase.from('financial_transactions').select('direction,amount').eq('status', 'paid'),
         supabase.from('profiles').select('full_name').eq('id', session.user.id).maybeSingle(),
       ])
       if (!mounted) return
@@ -39,8 +48,10 @@ export function Dashboard({ session }) {
         products: results[0].count,
         customers: results[1].count,
         orders: results[2].count,
-        receivables: results[3].data?.reduce((sum, row) => sum + Number(row.amount), 0) ?? null,
+        receivables: results[3].data?.reduce((sum, row) => sum + Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)), 0) ?? null,
       })
+      const balance = (results[5].data ?? []).reduce((sum, row) => sum + Number(row.initial_balance), 0) + (results[6].data ?? []).reduce((sum, row) => sum + (row.direction === 'in' ? Number(row.amount) : -Number(row.amount)), 0)
+      setMetrics((current) => ({ ...current, balance }))
       if (results[4].data?.full_name) setProfileName(results[4].data.full_name)
       setLoading(false)
     }
@@ -78,26 +89,26 @@ export function Dashboard({ session }) {
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={setActive} /> : active === 'customers' ? <CustomersPage /> : active === 'receivables' ? <ReceivablesPage /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
   </div>
 }
 
-function DashboardHome({ greeting, profileName, metrics, loading, error }) {
+function DashboardHome({ greeting, profileName, metrics, loading, error, setActive }) {
   return <div className="page-content">
     <div className="page-heading"><div><span className="eyebrow">Visão geral</span><h1>{greeting}, {profileName.split(' ')[0]}.</h1><p>Acompanhe o movimento da sua loja de prata 925.</p></div><button className="secondary-button">Hoje <span>⌄</span></button></div>
     {error && <div className="alert error inline-alert"><strong>Dados incompletos</strong><span>{error}</span></div>}
     <section className="metric-grid">
-      <MetricCard label="Saldo disponível" value="—" detail="Contas financeiras" accent="gold" loading={loading} />
+      <MetricCard label="Saldo disponível" value={metrics.balance == null ? '—' : money(metrics.balance)} detail="Contas financeiras" accent="gold" loading={loading} />
       <MetricCard label="A receber" value={metrics.receivables == null ? '—' : money(metrics.receivables)} detail="Parcelas pendentes" accent="lavender" loading={loading} />
       <MetricCard label="Produtos ativos" value={metrics.products == null ? '—' : metrics.products} detail="Peças cadastradas" accent="blue" loading={loading} />
       <MetricCard label="Pedidos" value={metrics.orders == null ? '—' : metrics.orders} detail="Pedidos não cancelados" accent="peach" loading={loading} />
     </section>
     <section className="dashboard-grid">
       <article className="panel flow-panel"><div className="panel-heading"><div><span className="eyebrow">Movimento</span><h2>Fluxo financeiro</h2></div><span className="muted-label">Últimos 7 dias</span></div><div className="chart-empty"><div className="chart-grid-lines" /><div className="chart-line income" /><div className="chart-line expense" /><div className="chart-empty-copy"><span className="empty-icon">◌</span><strong>Ainda não há movimentações</strong><p>Os lançamentos aparecerão aqui quando houver pagamentos ou despesas registrados.</p></div></div></article>
-      <article className="panel attention-panel"><div className="panel-heading"><div><span className="eyebrow">Atenção</span><h2>Próximas cobranças</h2></div><button className="link-button">Ver todas ↗</button></div><div className="empty-list"><span className="empty-icon">◷</span><strong>Nenhuma cobrança próxima</strong><p>Cadastre um cliente com pagamento parcelado para acompanhar os vencimentos.</p></div></article>
+      <article className="panel attention-panel"><div className="panel-heading"><div><span className="eyebrow">Atenção</span><h2>Próximas cobranças</h2></div><button className="link-button" onClick={() => setActive('receivables')}>Ver todas ↗</button></div><div className="empty-list"><span className="empty-icon">◷</span><strong>Nenhuma cobrança próxima</strong><p>Cadastre um cliente com pagamento parcelado para acompanhar os vencimentos.</p></div></article>
     </section>
-    <section className="dashboard-grid lower-grid"><article className="panel"><div className="panel-heading"><div><span className="eyebrow">Operação</span><h2>Pedidos recentes</h2></div><button className="link-button">Ver pedidos ↗</button></div><div className="empty-table"><span className="empty-icon">▣</span><strong>Nenhum pedido cadastrado</strong><p>Os pedidos manuais da loja aparecerão neste espaço.</p></div></article><article className="panel quick-panel"><div className="panel-heading"><div><span className="eyebrow">Atalhos</span><h2>Ações rápidas</h2></div></div><div className="quick-actions"><button><span>＋</span><div><strong>Novo pedido</strong><small>Registrar uma venda manual</small></div><b>↗</b></button><button><span>♧</span><div><strong>Nova cobrança</strong><small>Adicionar parcela de cliente</small></div><b>↗</b></button><button><span>◇</span><div><strong>Adicionar produto</strong><small>Cadastrar uma peça</small></div><b>↗</b></button></div></article></section>
+    <section className="dashboard-grid lower-grid"><article className="panel"><div className="panel-heading"><div><span className="eyebrow">Operação</span><h2>Pedidos recentes</h2></div><button className="link-button" onClick={() => setActive('orders')}>Ver pedidos ↗</button></div><div className="empty-table"><span className="empty-icon">▣</span><strong>Nenhum pedido cadastrado</strong><p>Os pedidos manuais da loja aparecerão neste espaço.</p></div></article><article className="panel quick-panel"><div className="panel-heading"><div><span className="eyebrow">Atalhos</span><h2>Ações rápidas</h2></div></div><div className="quick-actions"><button onClick={() => setActive('orders')}><span>＋</span><div><strong>Novo pedido</strong><small>Registrar uma venda manual</small></div><b>↗</b></button><button onClick={() => setActive('receivables')}><span>♧</span><div><strong>Nova cobrança</strong><small>Adicionar parcela de cliente</small></div><b>↗</b></button><button onClick={() => setActive('inventory')}><span>◇</span><div><strong>Adicionar produto</strong><small>Cadastrar uma peça</small></div><b>↗</b></button></div></article></section>
   </div>
 }
 

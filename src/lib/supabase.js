@@ -8,7 +8,9 @@ export const isSupabaseConfigured = Boolean(url && anonKey && !anonKey.includes(
 export const supabase = isSupabaseConfigured
   ? createClient(url, anonKey, {
       auth: {
-        persistSession: true,
+        // A sessão não deve sobreviver a reload/back-forward do navegador.
+        // Enquanto a aba permanecer aberta, o Supabase ainda pode renovar o token.
+        persistSession: false,
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },

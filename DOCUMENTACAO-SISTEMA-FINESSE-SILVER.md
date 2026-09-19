@@ -30,6 +30,10 @@
 
 > **Revisão 16 — 18/09/2026:** implementado o fluxo de primeiro acesso: convite com `access_token` abre a definição de senha, o primeiro login oferece cadastro TOTP por QR Code e os logins seguintes exigem desafio TOTP. O Vite local usa `http://localhost:3000/`, compatível com o redirecionamento atual do convite. A sessão AAL1 continua invisível para o dashboard até a validação AAL2.
 
+> **Revisão 20 — 18/09/2026:** implementada a primeira funcionalidade operacional do frontend: cadastro de clientes e módulo de cobranças parceladas. A interface consulta a view de parcelas, cria acordos pelo backend, calcula o saldo em aberto, mostra vencimentos/atrasos, copia mensagens de cobrança, abre o WhatsApp manualmente e registra recebimentos pela RPC transacional com `p_request_id`. Naquele momento o registro de contato ficou pendente de migration própria.
+
+> **Revisão 21 — 18/09/2026:** ampliada a integração operacional do frontend com Supabase. Foram conectados cadastro de peças/produtos, imagens no bucket privado, ajustes de estoque, pedidos manuais, baixa de estoque por venda, pagamentos de pedidos, contas e lançamentos financeiros, calendário de conteúdo e registro de contato de cobranças. A migration `supabase/migrations/20260918000300_mvp_operations.sql` adiciona as RPCs e permissões necessárias. Integrações automáticas com WhatsApp e Instagram continuam fora do MVP, conforme definido neste documento.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1153,7 +1157,7 @@ Esta seção substitui permissões antigas incompatíveis com o acesso exclusivo
 
 ### 18.3 Frontend e hospedagem — requisitos de liberação
 
-O frontend ainda não existe; os controles abaixo são requisitos, não funcionalidades já publicadas:
+O frontend já possui a fundação de autenticação, dashboard e módulos operacionais; os controles abaixo continuam sendo requisitos de liberação e não substituem a validação em ambiente real:
 
 - O frontend é público por natureza: qualquer visitante pode baixar JavaScript, descobrir a URL do Supabase e a chave publicável/anon, observar chamadas e tentar repetir requisições. Isso não deve conceder acesso ao backend; toda autorização precisa permanecer no banco e no Auth.
 - A chave publicável/anon não é uma credencial administrativa. A `service_role`, tokens de automação, senhas, TOTP, tokens de convite e qualquer segredo devem permanecer apenas em ambiente administrativo/servidor e nunca no bundle, navegador, GitHub ou logs.
@@ -1196,7 +1200,7 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - Login por senha usa `signInWithPassword`. Quando o Auth indicar segundo fator, a interface cria desafio TOTP e somente libera a sessão após `mfa.verify`.
 - Recuperação de senha usa o fluxo nativo do Supabase, sem armazenar senha, token ou TOTP no navegador.
 - O dashboard consulta contagens e parcelas pendentes reais; enquanto não houver dados, apresenta `—` e estados vazios, sem dados fictícios.
-- Os módulos ainda não implementados exibem estado de próxima etapa. Não há botões que gravem pedidos, clientes, estoque ou financeiro sem o fluxo de negócio correspondente.
+- Os módulos implementados gravam somente pelas permissões e RPCs previstas; integrações automáticas externas continuam exibindo ações manuais ou estados de aprovação.
 - O layout inicial é responsivo e usa o idioma português do Brasil. O design visual permanece uma base de trabalho até a aprovação da interface pelo proprietário.
 
 ### 19.2 Arquivos e validação
@@ -1206,6 +1210,12 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 - `src/app/AuthScreen.jsx`: login, MFA e recuperação.
 - `src/app/PasswordSetupScreen.jsx`: definição de senha no primeiro acesso por convite ou recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
+- `src/app/CustomersPage.jsx`: cadastro e busca de clientes.
+- `src/app/ProductsPage.jsx`: peças, preços, imagens e ajustes de estoque.
+- `src/app/OrdersPage.jsx`: pedidos manuais, itens, venda e pagamentos.
+- `src/app/ReceivablesPage.jsx`: cobranças, parcelas, mensagens e recebimentos.
+- `src/app/FinancePage.jsx`: contas e lançamentos manuais.
+- `src/app/ContentPage.jsx`: calendário e aprovação manual de conteúdo.
 - `src/styles.css`: identidade visual e responsividade.
 - `src/index.html`: entrada-fonte usada pelo Vite.
 - `index.html` e `assets/`: saída estática compilada para leitura direta pelo GitHub Pages.
@@ -1215,9 +1225,9 @@ O frontend ainda não existe; os controles abaixo são requisitos, não funciona
 
 ### 19.3 Próxima ordem de construção
 
-1. Aprovar visualmente a base do dashboard.
-2. Construir a tela de clientes e cobrança, incluindo a mensagem manual para WhatsApp.
-3. Construir pedidos manuais e venda com baixa de estoque por peça.
-4. Construir estoque por peça.
-5. Construir financeiro e controle de recebimentos.
-6. Construir conteúdo e agenda do Instagram conforme a decisão de integração.
+1. Aprovar visualmente a base do dashboard e dos módulos operacionais.
+2. Aplicar a migration `20260918000300_mvp_operations.sql` no Supabase remoto e validar o bucket privado de imagens.
+3. Validar com dados reais clientes, produtos, imagens, pedidos, estoque, cobranças e financeiro.
+4. Implementar relatórios e auditoria visual para a rotina diária.
+5. Construir seleção automática de conteúdo e integração oficial com Instagram, se aprovada.
+6. Avaliar WhatsApp Business Platform oficial, somente com orçamento e consentimento definidos.
