@@ -33,13 +33,13 @@ export function Dashboard({ session }) {
     let mounted = true
     async function load() {
       const results = await Promise.all([
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('customers').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).neq('status', 'cancelled'),
-        supabase.from('receivable_installment_summary').select('amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
-        supabase.from('financial_accounts').select('initial_balance'),
-        supabase.from('financial_transactions').select('direction,amount').eq('status', 'paid'),
-        supabase.from('profiles').select('full_name').eq('id', session.user.id).maybeSingle(),
+        supabase.from('produtos').select('id', { count: 'exact', head: true }).eq('active', true),
+        supabase.from('clientes').select('id', { count: 'exact', head: true }).eq('active', true),
+        supabase.from('pedidos').select('id', { count: 'exact', head: true }).neq('status', 'cancelled'),
+        supabase.from('resumo_parcelas_recebiveis').select('amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
+        supabase.from('contas_financeiras').select('initial_balance'),
+        supabase.from('transacoes_financeiras').select('direction,amount').eq('status', 'paid'),
+        supabase.from('perfis').select('full_name').eq('id', session.user.id).maybeSingle(),
       ])
       if (!mounted) return
       const firstError = results.find((result) => result.error)?.error

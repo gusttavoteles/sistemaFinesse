@@ -21,16 +21,16 @@ export function ProductsPage() {
   async function load() {
     setLoading(true)
     const [productResult, stockResult, categoryResult, supplierResult] = await Promise.all([
-      supabase.from('products').select('id,name,sku,category_id,supplier_id,material,purity,weight_grams,cost_price,sale_price,promotional_price,minimum_stock,description,care_instructions,active,created_at,product_images(storage_path,is_cover)').eq('active', true).order('name'),
-      supabase.from('product_stock').select('id,current_stock'),
-      supabase.from('categories').select('id,name').eq('active', true).order('name'),
-      supabase.from('suppliers').select('id,name').eq('active', true).order('name'),
+      supabase.from('produtos').select('id,name,sku,category_id,supplier_id,material,purity,weight_grams,cost_price,sale_price,promotional_price,minimum_stock,description,care_instructions,active,created_at,imagens_produtos(storage_path,is_cover)').eq('active', true).order('name'),
+      supabase.from('estoque_produtos').select('id,current_stock'),
+      supabase.from('categorias').select('id,name').eq('active', true).order('name'),
+      supabase.from('fornecedores').select('id,name').eq('active', true).order('name'),
     ])
     const error = [productResult, stockResult, categoryResult, supplierResult].find((result) => result.error)?.error
     if (error) setFeedback({ type: 'error', message: 'Não foi possível carregar o catálogo.' })
     const stocks = new Map((stockResult.data ?? []).map((row) => [row.id, Number(row.current_stock)]))
     const mapped = await Promise.all((productResult.data ?? []).map(async (product) => {
-      const cover = product.product_images?.find((item) => item.is_cover) ?? product.product_images?.[0]
+      const cover = product.imagens_produtos?.find((item) => item.is_cover) ?? product.imagens_produtos?.[0]
       let imageUrl = ''
       if (cover?.storage_path) imageUrl = (await supabase.storage.from('product-images').createSignedUrl(cover.storage_path, 3600)).data?.signedUrl || ''
       return { ...product, current_stock: stocks.get(product.id) ?? 0, imageUrl }
@@ -56,7 +56,7 @@ export function ProductsPage() {
     setSaving(true)
     setFeedback({ type: '', message: '' })
     const payload = { name: form.name.trim(), sku: form.sku.trim() || null, category_id: form.category_id || null, supplier_id: form.supplier_id || null, material: form.material.trim() || 'Prata 925', purity: form.purity ? Number(form.purity) : null, weight_grams: form.weight_grams ? Number(form.weight_grams) : null, cost_price: Number(form.cost_price || 0), sale_price: Number(form.sale_price || 0), promotional_price: form.promotional_price ? Number(form.promotional_price) : null, minimum_stock: Number(form.minimum_stock || 0), description: form.description.trim() || null, care_instructions: form.care_instructions.trim() || null }
-    const { data, error } = await supabase.from('products').insert(payload).select('id').single()
+    const { data, error } = await supabase.from('produtos').insert(payload).select('id').single()
     if (error) {
       setFeedback({ type: 'error', message: 'Não foi possível salvar a peça. Verifique SKU, preços e campos obrigatórios.' })
     } else {
@@ -71,7 +71,7 @@ export function ProductsPage() {
     const path = `${productId}/${crypto.randomUUID()}.${extension}`
     const upload = await supabase.storage.from('product-images').upload(path, file, { contentType: file.type, upsert: false })
     if (upload.error) { setFeedback({ type: 'error', message: 'A peça foi criada, mas a imagem não pôde ser enviada. Confira o bucket product-images.' }); return }
-    const { error } = await supabase.from('product_images').insert({ product_id: productId, storage_path: path, is_cover: true, sort_order: 0 })
+    const { error } = await supabase.from('imagens_produtos').insert({ product_id: productId, storage_path: path, is_cover: true, sort_order: 0 })
     if (error) setFeedback({ type: 'error', message: 'A peça foi criada, mas o registro da imagem não pôde ser salvo.' })
   }
 

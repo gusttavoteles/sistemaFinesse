@@ -14,7 +14,7 @@ export function CustomersPage() {
 
   async function loadCustomers() {
     setLoading(true)
-    const { data, error } = await supabase.from('customers').select('id,name,phone,email,whatsapp_opt_in,active,created_at').eq('active', true).order('name', { ascending: true })
+    const { data, error } = await supabase.from('clientes').select('id,name,phone,email,whatsapp_opt_in,active,created_at').eq('active', true).order('name', { ascending: true })
     if (error) setFeedback({ type: 'error', message: 'Não foi possível carregar os clientes.' })
     else setCustomers(data ?? [])
     setLoading(false)
@@ -38,7 +38,7 @@ export function CustomersPage() {
     setFeedback({ type: '', message: '' })
     setSaving(true)
     const payload = { name: form.name.trim(), phone: form.phone.trim() || null, email: form.email.trim() || null, whatsapp_opt_in: form.whatsapp_opt_in }
-    const { error } = await supabase.from('customers').insert(payload)
+    const { error } = await supabase.from('clientes').insert(payload)
     if (error) setFeedback({ type: 'error', message: 'Não foi possível salvar o cliente. Confira os dados e tente novamente.' })
     else { setForm(emptyForm); setShowForm(false); setFeedback({ type: 'success', message: 'Cliente cadastrado com sucesso.' }); await loadCustomers() }
     setSaving(false)

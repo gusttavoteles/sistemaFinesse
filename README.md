@@ -37,6 +37,7 @@ O backend está documentado e versionado em:
 - `supabase/migrations/20260918000200_security.sql` — gates de master e operações idempotentes;
 - `supabase/migrations/20260918000300_mvp_operations.sql` — imagens privadas, contato de cobrança e lançamentos financeiros manuais;
 - `supabase/migrations/20260919000400_remove_mfa_requirement.sql` — remoção da exigência de MFA, mantendo master ativo e sessão válida;
+- `supabase/migrations/20260919000500_portuguese_table_names.sql` — renomeação das tabelas e views de negócio para português;
 - `supabase/seed.sql` — dados padrão para desenvolvimento;
 - `supabase/README.md` — instruções para aplicar a migration;
 - `.env.example` — variáveis públicas necessárias para conectar o frontend.

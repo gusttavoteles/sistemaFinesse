@@ -35,9 +35,9 @@ export function ReceivablesPage() {
   async function loadData() {
     setLoading(true)
     const [installments, customerResult, accountResult] = await Promise.all([
-      supabase.from('receivable_installment_summary').select('*').order('due_date', { ascending: true }),
-      supabase.from('customers').select('id,name,phone').eq('active', true).order('name'),
-      supabase.from('financial_accounts').select('id,name,type').eq('active', true).order('name'),
+      supabase.from('resumo_parcelas_recebiveis').select('*').order('due_date', { ascending: true }),
+      supabase.from('clientes').select('id,name,phone').eq('active', true).order('name'),
+      supabase.from('contas_financeiras').select('id,name,type').eq('active', true).order('name'),
     ])
     const firstError = [installments, customerResult, accountResult].find((result) => result.error)?.error
     if (firstError) setFeedback({ type: 'error', message: 'Não foi possível carregar os dados de cobrança.' })
@@ -61,7 +61,7 @@ export function ReceivablesPage() {
     const total = Number(form.total_amount)
     const count = Number(form.installment_count)
     const payload = { customer_id: form.customer_id, total_amount: total, installment_count: count, installment_amount: Math.round((total / count) * 100) / 100, first_due_date: form.first_due_date, due_day: Number(form.due_day), notes: form.notes.trim() || null }
-    const { error } = await supabase.from('receivable_agreements').insert(payload)
+    const { error } = await supabase.from('acordos_recebiveis').insert(payload)
     if (error) setFeedback({ type: 'error', message: 'Não foi possível criar o acordo. Confira cliente, valor e vencimento.' })
     else { setShowForm(false); setForm((current) => ({ ...current, total_amount: '', notes: '' })); setFeedback({ type: 'success', message: 'Acordo criado e parcelas geradas automaticamente.' }); await loadData() }
     setSaving(false)

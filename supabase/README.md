@@ -4,7 +4,7 @@
 
 A migration em `supabase/migrations/20260918000100_initial_backend.sql` é a fonte reproduzível da estrutura inicial do banco. Ela cria:
 
-- autenticação complementar em `public.profiles`;
+- perfis de acesso em `public.perfis`;
 - clientes;
 - produtos e categorias;
 - pedidos manuais;
@@ -26,16 +26,17 @@ Enquanto o Supabase CLI não estiver configurado na máquina, a migration pode s
 3. Criar uma nova query.
 4. Colar o conteúdo da migration.
 5. Executar e verificar se não houve erro.
-6. Executar o conteúdo de `supabase/seed.sql` em uma segunda query.
 
-Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra exige dois masters pré-autorizados. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite e confirmar o e-mail antes do acesso. Alterar somente `profiles.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
+Depois aplicar `supabase/migrations/20260918000200_security.sql`. A regra exige dois masters pré-autorizados. Usar `supabase/operations/provision-masters.sql` para reservar os dois e-mails no schema privado, nunca no GitHub. Criar as contas pelo fluxo administrativo de convite e confirmar o e-mail antes do acesso. Alterar somente `perfis.role` não concede acesso. O procedimento antigo de promover um usuário comum foi substituído.
 
 Depois aplicar `supabase/migrations/20260918000300_mvp_operations.sql`. Essa migration adiciona o registro de contato de parcelas, a entrada financeira manual segura e o bucket privado `product-images`, com políticas subordinadas ao gate de master. O bucket não é público; as imagens são lidas pelo frontend por URL assinada.
 Por fim, aplicar `supabase/migrations/20260919000400_remove_mfa_requirement.sql` para remover a exigência de AAL2/MFA do acesso operacional. A lista de masters, o perfil ativo, o e-mail confirmado e a sessão válida continuam obrigatórios.
+Depois, aplicar `supabase/migrations/20260919000500_portuguese_table_names.sql`. Ela renomeia as tabelas de negócio para português, preserva os dados e atualiza as funções, views e auditoria. As principais tabelas são `clientes`, `produtos`, `pedidos`, `itens_pedidos`, `contas_financeiras`, `transacoes_financeiras`, `acordos_recebiveis` e `parcelas_recebiveis`.
+Somente depois de todas as migrations, executar `supabase/seed.sql` para inserir categorias, contas financeiras e configurações padrão.
 
 ## Estado remoto validado
 
-Em 18/09/2026, o projeto remoto `finesse-silver` já continha o schema correspondente à base inicial. A tentativa de reaplicar a migration foi interrompida pelo próprio banco porque o tipo `public.app_role` já existia; nenhum dado foi apagado. O diagnóstico confirmou 19 tabelas, 13 tipos, 4 funções, 2 views e RLS nas 19 tabelas. O seed foi executado com sucesso e os testes transacionais de parcelas, total do pedido e rollback foram aprovados.
+Em 19/09/2026, o projeto remoto `finesse-silver` está com as 19 tabelas de negócio em português, 13 tipos, 2 views renomeadas e RLS ativo. A migration `20260919000500_portuguese_table_names` foi aplicada e registrada no histórico. O fluxo transacional remoto de estoque, pedido, pagamento e parcelamento foi aprovado com rollback, sem deixar dados de teste.
 
 ## Funções de negócio
 

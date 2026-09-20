@@ -15,7 +15,7 @@ begin
     insert into private.master_access(slot,email,user_id) values(i,e,uid)
     on conflict(slot) do update set user_id=coalesce(private.master_access.user_id,excluded.user_id);
     if uid is not null then
-      insert into public.profiles(id,full_name,email,role,active) values(uid,'Master',e,'admin',true)
+      insert into public.perfis(id,full_name,email,role,active) values(uid,'Master',e,'admin',true)
       on conflict(id) do update set role='admin',active=true;
     end if;
   end loop;

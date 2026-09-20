@@ -1,14 +1,14 @@
 -- Dados iniciais seguros para desenvolvimento.
 -- Este arquivo não cria usuários nem dados de clientes reais.
 
-insert into public.store_settings (id, store_name, currency, timezone)
+insert into public.configuracoes_loja (id, store_name, currency, timezone)
 values (true, 'Finesse Silver', 'BRL', 'America/Sao_Paulo')
 on conflict (id) do update
 set store_name = excluded.store_name,
     currency = excluded.currency,
     timezone = excluded.timezone;
 
-insert into public.categories (name, description)
+insert into public.categorias (name, description)
 select name, description
 from (
   values
@@ -20,10 +20,10 @@ from (
     ('Acessórios', 'Embalagens e acessórios complementares')
 ) as defaults(name, description)
 where not exists (
-  select 1 from public.categories c where c.name = defaults.name
+  select 1 from public.categorias c where c.name = defaults.name
 );
 
-insert into public.financial_categories (name, type)
+insert into public.categorias_financeiras (name, type)
 select name, type::public.financial_category_type
 from (
   values
@@ -36,12 +36,12 @@ from (
 ) as defaults(name, type)
 where not exists (
   select 1
-  from public.financial_categories fc
+  from public.categorias_financeiras fc
   where fc.name = defaults.name
     and fc.type = defaults.type::public.financial_category_type
 );
 
-insert into public.financial_accounts (name, type, institution)
+insert into public.contas_financeiras (name, type, institution)
 select defaults.name, defaults.type::public.financial_account_type, defaults.institution
 from (
   values
@@ -49,5 +49,5 @@ from (
     ('Pix', 'digital_wallet', null)
 ) as defaults(name, type, institution)
 where not exists (
-  select 1 from public.financial_accounts fa where fa.name = defaults.name
+  select 1 from public.contas_financeiras fa where fa.name = defaults.name
 );
