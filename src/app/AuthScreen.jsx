@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { authRedirectUrl, supabase } from '../lib/supabase'
 
+function recoveryErrorMessage(error) {
+  const message = String(error?.message || '').toLowerCase()
+  if (message.includes('rate limit') || message.includes('too many') || message.includes('after')) return 'Muitas tentativas de recuperação foram feitas recentemente. Aguarde alguns minutos e solicite um novo e-mail.'
+  if (message.includes('redirect') || message.includes('url')) return 'O endereço de recuperação não está autorizado no Supabase. Atualize a página publicada e tente novamente.'
+  if (message.includes('smtp') || message.includes('email')) return 'O Supabase não conseguiu enviar o e-mail agora. Verifique o provedor de e-mail e tente novamente em alguns minutos.'
+  return 'Não foi possível solicitar a redefinição agora. Tente novamente em alguns minutos.'
+}
+
 export function AuthScreen({ configurationError = '', initialError = '' }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,7 +41,10 @@ export function AuthScreen({ configurationError = '', initialError = '' }) {
     setBusy(true)
     const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: authRedirectUrl })
     setBusy(false)
-    if (recoveryError) setError('Não foi possível solicitar a recuperação agora.')
+    if (recoveryError) {
+      console.error('Falha na recuperação de senha:', recoveryError)
+      setError(recoveryErrorMessage(recoveryError))
+    }
     else setNotice('Se o e-mail estiver autorizado, enviaremos as instruções de recuperação.')
   }
 

@@ -57,4 +57,6 @@ Copie `.env.example` para `.env.local` e informe somente a URL do projeto e a ch
 
 O fluxo de recuperação de senha usa `VITE_AUTH_REDIRECT_URL`. O valor padrão é `https://gusttavoteles.github.io/sistemaFinesse/`, evitando que o link enviado por e-mail aponte para `localhost`. Se o sistema for publicado em outro endereço, atualize essa variável e inclua o endereço na lista de Redirect URLs do Supabase.
 
+Se houver muitas solicitações seguidas, o provedor de autenticação pode aplicar um limite temporário de envio. Nesse caso, aguarde alguns minutos antes de solicitar outro e-mail.
+
 O comando `npm run build` gera `dist/` e também copia o `index.html` compilado e os assets para a raiz do repositório. Assim, o GitHub Pages configurado para publicar o ramo `main` pela raiz consegue localizar a entrada estática da aplicação.
