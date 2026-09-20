@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { authRedirectUrl, supabase } from '../lib/supabase'
 
 export function AuthScreen({ configurationError = '', initialError = '' }) {
   const [email, setEmail] = useState('')
@@ -31,7 +31,7 @@ export function AuthScreen({ configurationError = '', initialError = '' }) {
       return
     }
     setBusy(true)
-    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.href.split('#')[0] })
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: authRedirectUrl })
     setBusy(false)
     if (recoveryError) setError('Não foi possível solicitar a recuperação agora.')
     else setNotice('Se o e-mail estiver autorizado, enviaremos as instruções de recuperação.')

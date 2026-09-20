@@ -4,6 +4,7 @@ const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const isSupabaseConfigured = Boolean(url && anonKey && !anonKey.includes('coloque_'))
+export const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://gusttavoteles.github.io/sistemaFinesse/'
 
 export const supabase = isSupabaseConfigured
   ? createClient(url, anonKey, {

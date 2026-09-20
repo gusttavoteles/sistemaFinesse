@@ -55,4 +55,6 @@ O servidor local abre em `http://localhost:3000/`, que é o endereço usado pelo
 
 Copie `.env.example` para `.env.local` e informe somente a URL do projeto e a chave publicável/anon do Supabase. Nunca informe a `service_role` no frontend.
 
+O fluxo de recuperação de senha usa `VITE_AUTH_REDIRECT_URL`. O valor padrão é `https://gusttavoteles.github.io/sistemaFinesse/`, evitando que o link enviado por e-mail aponte para `localhost`. Se o sistema for publicado em outro endereço, atualize essa variável e inclua o endereço na lista de Redirect URLs do Supabase.
+
 O comando `npm run build` gera `dist/` e também copia o `index.html` compilado e os assets para a raiz do repositório. Assim, o GitHub Pages configurado para publicar o ramo `main` pela raiz consegue localizar a entrada estática da aplicação.
