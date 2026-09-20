@@ -24,6 +24,7 @@ function emptyMetrics() {
 
 export function Dashboard({ session }) {
   const [active, setActive] = useState('dashboard')
+  const [menuOpen, setMenuOpen] = useState(false)
   const [metrics, setMetrics] = useState(emptyMetrics)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -59,6 +60,19 @@ export function Dashboard({ session }) {
     return () => { mounted = false }
   }, [session.user.id])
 
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.body.classList.add('menu-open')
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.classList.remove('menu-open')
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [menuOpen])
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
     return hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
@@ -68,15 +82,21 @@ export function Dashboard({ session }) {
     await supabase.auth.signOut()
   }
 
+  function selectPage(id) {
+    setActive(id)
+    setMenuOpen(false)
+  }
+
   return <div className="app-shell">
-    <aside className="sidebar">
+    {menuOpen && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />}
+    <aside className={menuOpen ? 'sidebar is-open' : 'sidebar'}>
       <div className="sidebar-top">
-        <div className="logo-lockup"><span className="logo-symbol">F</span><span>finesse</span></div>
+        <div className="sidebar-brand-row"><div className="logo-lockup"><span className="logo-symbol">F</span><span>finesse</span></div><button className="menu-close" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}>×</button></div>
         <div className="brand-kicker">silver · gestão</div>
       </div>
       <nav className="main-nav" aria-label="Navegação principal">
         <span className="nav-heading">Menu</span>
-        {navigation.map((item) => <button key={item.id} className={active === item.id ? 'nav-item active' : 'nav-item'} onClick={() => setActive(item.id)}><span className="nav-icon">{item.icon}</span>{item.label}</button>)}
+        {navigation.map((item) => <button key={item.id} className={active === item.id ? 'nav-item active' : 'nav-item'} onClick={() => selectPage(item.id)}><span className="nav-icon">{item.icon}</span>{item.label}</button>)}
       </nav>
       <div className="sidebar-bottom">
         <div className="security-chip"><span>●</span><div><strong>Acesso autorizado</strong><small>Senha e e-mail confirmado</small></div></div>
@@ -85,6 +105,7 @@ export function Dashboard({ session }) {
     </aside>
     <main className="main-content">
       <header className="topbar">
+        <button className="menu-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><span /><span /><span /></button>
         <div className="mobile-brand"><span className="logo-symbol">F</span> finesse</div>
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
