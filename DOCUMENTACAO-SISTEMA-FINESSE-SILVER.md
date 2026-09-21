@@ -36,6 +36,8 @@
 
 > **Revisão 22 — 19/09/2026:** por decisão do proprietário, o MFA/TOTP foi removido do acesso operacional para destravar o uso do sistema. A migration `supabase/migrations/20260919000400_remove_mfa_requirement.sql` mantém os dois masters, perfil ativo, e-mail confirmado, sessão válida e expiração de oito horas, mas não exige mais AAL2. O frontend agora usa somente e-mail e senha. Essa decisão reduz a proteção contra acesso indevido e deve ser reavaliada antes de ampliar o sistema.
 
+> **Revisão 23 — 21/09/2026:** edição de cadastros preservando UUID e histórico, download autenticado das fotos, criação atômica de pedido com parcelas vinculadas e correção da visão geral/financeiro. As regras detalhadas e os limites de edição estão na seção 20. Migration: `20260921000600_linked_orders_and_dashboard.sql`.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1233,3 +1235,38 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 4. Implementar relatórios e auditoria visual para a rotina diária.
 5. Construir seleção automática de conteúdo e integração oficial com Instagram, se aprovada.
 6. Avaliar WhatsApp Business Platform oficial, somente com orçamento e consentimento definidos.
+
+## 20. Revisão de fluxos solicitada em 21/09/2026
+
+### 20.1 Edição e propagação
+
+- Clientes, produtos, contas financeiras e conteúdo não publicado passam a oferecer edição do mesmo registro (UUID preservado), nunca exclusão/recriação para corrigir dados.
+- Nome/telefone/e-mail do cliente são dados canônicos. Pedidos, cobranças, mensagens e dashboard consultam os relacionamentos e mostram os dados atualizados ao abrir/recarregar a tela. Não há sincronização em tempo real entre computadores nesta revisão.
+- Nome/preço/custo do produto usados numa venda são snapshots históricos: editar o catálogo não reescreve itens nem valores de pedidos existentes. Estoque continua sendo alterado apenas por movimentação com motivo.
+- Pedidos oferecem edição de cliente e observações. Trocar o cliente é permitido somente antes de qualquer recebimento e atualiza também o acordo vinculado, na mesma transação. Observações não alteram estoque ou financeiro. Alteração de itens, total ou plano após gerar cobrança exige fluxo de revisão/renegociação próprio; não será feita implicitamente por edição cadastral.
+- Conta permite editar nome, tipo e instituição; não permite reescrever saldo inicial nem lançamentos recebidos. Conteúdo publicado é histórico; editar conteúdo ainda não publicado retorna à sugestão para nova aprovação.
+- Parcela em aberto permite corrigir vencimento individual, com motivo auditado. Não altera valor, quantidade, pagamentos, nem as demais datas do acordo. Parcelas quitadas/canceladas e acordos inativos permanecem bloqueados.
+
+### 20.2 Fotos privadas
+
+- Cada foto vinculada à peça terá ação Baixar foto, usando sessão autenticada no bucket privado `product-images`; não tornar o bucket público.
+- Upload mantém JPEG/PNG/WebP e limite de 5 MiB. Adicionar foto durante edição preserva as fotos anteriores. Falha da foto deve ser informada separadamente do sucesso do cadastro, sem incentivar cadastro duplicado.
+
+### 20.3 Pedido e cobrança vinculada
+
+- Ao cadastrar pedido, informar se haverá cobrança parcelada, quantidade, primeiro vencimento e dia mensal. Cliente é obrigatório para parcelamento. O plano abrange o total do pedido (itens + frete − desconto), sem entrada automática.
+- Pedido, itens, acordo e parcelas são criados numa única transação idempotente. Falha em qualquer etapa desfaz toda a criação. Um pedido possui no máximo um acordo vinculado; cobranças antigas independentes não são associadas por suposição.
+- Parcelas aparecem em Cobranças imediatamente após o cadastro, mesmo antes de Marcar vendido. Isso não baixa estoque nem gera entrada financeira. Marcar vendido continua baixando estoque uma única vez.
+- Receber parcela vinculada registra um único lançamento financeiro e sincroniza o pagamento parcial/integral do pedido. O botão de pagamento desses pedidos direciona para Cobranças, evitando recebimentos paralelos duplicados. Parcelas do cartão são metadados de um pagamento recebido e não substituem um plano de cobrança.
+- Mantidos: divisão mensal, até 120 parcelas, mínimo de R$ 0,01 por parcela, ajuste de centavos na última parcela e último dia do mês quando necessário. Mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido.
+
+### 20.4 Visão geral e validação
+
+- Corrigir status `canceled`, leitura trocada de resultados e término de carregamento em falhas. Mostrar erro, não zero fictício, quando os dados não puderem ser consultados.
+- Saldo = saldo inicial das contas ativas + todas as entradas pagas − todas as saídas pagas dessas contas. Dashboard e Financeiro usam a mesma agregação no banco, sem limitar cálculo aos últimos 100/1.000 registros.
+- A receber = saldo restante de parcelas de acordos ativos; pedidos = pedidos não cancelados; produtos/clientes = cadastros ativos. Fluxo mostra movimentos pagos dos últimos sete dias; próximos vencimentos incluem atrasos e próximos sete dias; pedidos recentes mostram registros reais.
+- Recarregar a visão geral ao retornar de outro módulo, voltar o foco à janela ou clicar Atualizar.
+- Implementação e evidências desta revisão: migration `20260921000600_linked_orders_and_dashboard.sql` aplicada/verificada no projeto remoto `rswbuqkwdwttylppnhcw` em 21/09/2026. A confirmação remota encontrou as duas colunas de vínculo, as quatro RPCs públicas (`create_manual_order`, `edit_order_details`, `edit_installment_due_date`, `dashboard_summary`), as duas views (`resumo_parcelas_recebiveis`, `saldos_contas_financeiras`) e os triggers de sincronização/proteção.
+- `npm test`: 17 cenários aprovados, incluindo rollback atômico, idempotência, recebimento parcial/integral sem duplicação financeira, propagação de cliente, preservação de snapshots, correção auditada de vencimento, segurança de fotos e dashboard com mais de 1.000 lançamentos.
+- `npm run build`: aprovado. A saída compilada foi atualizada na raiz para GitHub Pages. O aviso de tamanho do bundle não impede a publicação e fica registrado para futura divisão de módulos.
+- QA visual isolado em `tests/browser-preview/`: aprovado para edição de cliente/produto/conta/conteúdo, parcelamento de pedido, filtro de cobranças, mensagem com saldo restante, download autenticado simulado e recuperação da visão geral após erro. O fixture não usa o Supabase remoto nem dados reais.
