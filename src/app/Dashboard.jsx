@@ -7,11 +7,13 @@ import { ProductsPage } from './ProductsPage'
 import { OrdersPage } from './OrdersPage'
 import { FinancePage } from './FinancePage'
 import { ContentPage } from './ContentPage'
+import { WinbackPage } from './WinbackPage'
 
 const navigation = [
   { id: 'dashboard', label: 'Visão geral', icon: '⌂' },
   { id: 'orders', label: 'Pedidos', icon: '▣' },
   { id: 'customers', label: 'Clientes', icon: '♧' },
+  { id: 'winback', label: 'Reativação', icon: '↻' },
   { id: 'receivables', label: 'Cobranças', icon: '◷' },
   { id: 'inventory', label: 'Produtos e estoque', icon: '◇' },
   { id: 'finance', label: 'Financeiro', icon: '◷' },
@@ -110,7 +112,7 @@ export function Dashboard({ session }) {
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} /> : active === 'customers' ? <CustomersPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} /> : active === 'customers' ? <CustomersPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
   </div>
 }

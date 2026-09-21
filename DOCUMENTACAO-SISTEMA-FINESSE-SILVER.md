@@ -40,6 +40,8 @@
 
 > **Revisão 24 — 21/09/2026:** criada a programação semanal de conteúdo. Ao solicitar a programação, o sistema sorteia fotos de produtos ativos, agenda até 5 por dia de segunda a domingo, impede repetição da mesma imagem na semana, informa eventual falta de fotos e disponibiliza o download autenticado das fotos de cada dia. A regra está na seção 20.5 e na migration `20260921000700_weekly_content_scheduler.sql`.
 
+> **Revisão 25 — 21/09/2026:** criada a aba **Reativação** para relacionamento pós-compra. Todos os clientes cadastrados, inclusive inativos, aparecem na lista. Cada cliente possui duas mensagens prontas: aviso de novas peças e convite para comprar novamente. Os botões preparam o contato manual, copiam a mensagem e abrem o WhatsApp quando há telefone cadastrado. Regras detalhadas na seção 20.6.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -127,12 +129,13 @@ Para reduzir risco, não começar com emissão fiscal, integração bancária au
 4. **Controle financeiro**
 5. **Estoque**
 6. **Produtos**
-7. **Clientes**
-8. **Fornecedores**
-9. **Conteúdo Instagram**
-10. **Relatórios**
-11. **Configurações**
-12. **Auditoria** — visível apenas para administrador.
+  7. **Clientes**
+  8. **Reativação de clientes**
+  9. **Fornecedores**
+  10. **Conteúdo Instagram**
+  11. **Relatórios**
+  12. **Configurações**
+  13. **Auditoria** — visível apenas para administrador.
 
 ### 3.2 Dashboard
 
@@ -1215,6 +1218,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - `src/app/PasswordSetupScreen.jsx`: definição de senha no primeiro acesso por convite ou recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
 - `src/app/CustomersPage.jsx`: cadastro e busca de clientes.
+- `src/app/WinbackPage.jsx`: reativação de todos os clientes cadastrados, mensagens prontas e contato manual.
 - `src/app/ProductsPage.jsx`: peças, preços, imagens e ajustes de estoque.
 - `src/app/OrdersPage.jsx`: pedidos manuais, itens, venda e pagamentos.
 - `src/app/ReceivablesPage.jsx`: cobranças, parcelas, mensagens e recebimentos.
@@ -1284,3 +1288,15 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - O botão **Baixar fotos** executa um download autenticado por imagem do dia, com nomes de arquivo contendo data, ordem e produto. O navegador pode solicitar autorização para múltiplos downloads. O sistema não cria ZIP nesta etapa.
 - A implementação está em `supabase/migrations/20260921000700_weekly_content_scheduler.sql`, na RPC `generate_weekly_content_schedule(date, uuid)`, e na tela `src/app/ContentPage.jsx`.
 - Validação local: os 19 testes confirmam 35 imagens distribuídas em 7 dias com 5 únicas por dia, reexecução idempotente e comportamento de escassez sem repetição. A migration `20260921000700_weekly_content_scheduler.sql` foi aplicada no Supabase remoto em 21/09/2026; a verificação confirmou a RPC e os índices `imagens_produtos_storage_path_idx` e `publicacoes_conteudo_image_schedule_idx`. Nenhum post real foi criado durante a validação remota.
+
+### 20.6 Reativação de clientes
+
+- A aba **Reativação** lista todos os registros da tabela `clientes`, sem filtrar pelo campo `active`. Assim, clientes ativos e inativos continuam disponíveis para consulta e contato, conforme solicitado.
+- A lista permite buscar por nome, telefone ou e-mail. A edição do cadastro continua sendo feita na aba **Clientes**, mantendo uma única fonte de dados para nome e telefone.
+- Cada cliente possui duas ações: **Avisar novas peças** e **Convidar para comprar novamente**. As mensagens usam o nome atual do cadastro no momento do clique.
+- Mensagem de novas peças: `Olá, {nome}! Tudo bem? Chegaram peças novas em prata 925 na Finesse Silver e lembrei de você. Se quiser, posso te enviar as novidades. Será um prazer te atender! ✨`
+- Mensagem de recompra: `Olá, {nome}! Tudo bem? Sentimos sua falta na Finesse Silver. Temos novidades em prata 925 e será um prazer te ajudar a escolher algo novo para você. Quer ver algumas opções? ✨`
+- Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
+- Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
+- O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
+- A implementação está em `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a funcionalidade consulta os clientes já existentes com RLS e autenticação master.
