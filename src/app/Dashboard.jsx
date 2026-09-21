@@ -22,6 +22,23 @@ function emptyMetrics() {
   return { products: null, customers: null, orders: null, receivables: null, balance: null }
 }
 
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function monthDate(key) {
+  const [year, month] = key.split('-').map(Number)
+  return new Date(year, month - 1, 1)
+}
+
+function addMonths(date, amount) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1)
+}
+
+function monthLabel(date) {
+  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date)
+}
+
 export function Dashboard({ session }) {
   const [active, setActive] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -29,6 +46,8 @@ export function Dashboard({ session }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [profileName, setProfileName] = useState('Master')
+  const [projectionMonth, setProjectionMonth] = useState(monthKey(new Date()))
+  const [projectionRows, setProjectionRows] = useState([])
 
   useEffect(() => {
     let mounted = true
@@ -51,9 +70,10 @@ export function Dashboard({ session }) {
         orders: results[2].count,
         receivables: results[3].data?.reduce((sum, row) => sum + Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)), 0) ?? null,
       })
-      const balance = (results[5].data ?? []).reduce((sum, row) => sum + Number(row.initial_balance), 0) + (results[6].data ?? []).reduce((sum, row) => sum + (row.direction === 'in' ? Number(row.amount) : -Number(row.amount)), 0)
+      setProjectionRows(results[3].data ?? [])
+      const balance = (results[4].data ?? []).reduce((sum, row) => sum + Number(row.initial_balance || 0), 0) + (results[5].data ?? []).reduce((sum, row) => sum + (row.direction === 'in' ? Number(row.amount) : -Number(row.amount)), 0)
       setMetrics((current) => ({ ...current, balance }))
-      if (results[4].data?.full_name) setProfileName(results[4].data.full_name)
+      if (results[6].data?.full_name) setProfileName(results[6].data.full_name)
       setLoading(false)
     }
     load()
@@ -87,6 +107,14 @@ export function Dashboard({ session }) {
     setMenuOpen(false)
   }
 
+  const projectionCards = [0, 1, 2].map((offset) => {
+    const date = addMonths(monthDate(projectionMonth), offset)
+    const key = monthKey(date)
+    const rows = projectionRows.filter((row) => String(row.due_date).slice(0, 7) === key)
+    const amount = rows.reduce((sum, row) => sum + Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)), 0)
+    return { date, amount, count: rows.length, label: offset === 0 ? 'Mês escolhido' : offset === 1 ? 'Próximo mês' : 'Daqui a 2 meses' }
+  })
+
   return <div className="app-shell">
     {menuOpen && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />}
     <aside className={menuOpen ? 'sidebar is-open' : 'sidebar'}>
@@ -110,12 +138,12 @@ export function Dashboard({ session }) {
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={setActive} /> : active === 'customers' ? <CustomersPage /> : active === 'receivables' ? <ReceivablesPage /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={setActive} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} /> : active === 'customers' ? <CustomersPage /> : active === 'receivables' ? <ReceivablesPage /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
   </div>
 }
 
-function DashboardHome({ greeting, profileName, metrics, loading, error, setActive }) {
+function DashboardHome({ greeting, profileName, metrics, loading, error, setActive, projectionMonth, setProjectionMonth, projectionCards }) {
   return <div className="page-content">
     <div className="page-heading"><div><span className="eyebrow">Visão geral</span><h1>{greeting}, {profileName.split(' ')[0]}.</h1><p>Acompanhe o movimento da sua loja de prata 925.</p></div><button className="secondary-button">Hoje <span>⌄</span></button></div>
     {error && <div className="alert error inline-alert"><strong>Dados incompletos</strong><span>{error}</span></div>}
@@ -124,6 +152,10 @@ function DashboardHome({ greeting, profileName, metrics, loading, error, setActi
       <MetricCard label="A receber" value={metrics.receivables == null ? '—' : money(metrics.receivables)} detail="Parcelas pendentes" accent="lavender" loading={loading} />
       <MetricCard label="Produtos ativos" value={metrics.products == null ? '—' : metrics.products} detail="Peças cadastradas" accent="blue" loading={loading} />
       <MetricCard label="Pedidos" value={metrics.orders == null ? '—' : metrics.orders} detail="Pedidos não cancelados" accent="peach" loading={loading} />
+    </section>
+    <section className="panel projection-panel">
+      <div className="panel-heading projection-heading"><div><span className="eyebrow">Planejamento</span><h2>Projeção de recebimentos</h2><p>Veja o saldo previsto das parcelas por mês.</p></div><label className="month-picker">Mês de referência<input type="month" value={projectionMonth} onChange={(event) => setProjectionMonth(event.target.value)} /></label></div>
+      <div className="projection-cards">{projectionCards.map((card) => <article className="projection-card" key={card.date.toISOString()}><div className="projection-card-top"><span>{card.label}</span><i>◷</i></div><strong>{loading ? '—' : money(card.amount)}</strong><small>{monthLabel(card.date)} · {card.count} {card.count === 1 ? 'parcela' : 'parcelas'}</small></article>)}</div>
     </section>
     <section className="dashboard-grid">
       <article className="panel flow-panel"><div className="panel-heading"><div><span className="eyebrow">Movimento</span><h2>Fluxo financeiro</h2></div><span className="muted-label">Últimos 7 dias</span></div><div className="chart-empty"><div className="chart-grid-lines" /><div className="chart-line income" /><div className="chart-line expense" /><div className="chart-empty-copy"><span className="empty-icon">◌</span><strong>Ainda não há movimentações</strong><p>Os lançamentos aparecerão aqui quando houver pagamentos ou despesas registrados.</p></div></div></article>

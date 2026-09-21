@@ -36,6 +36,8 @@
 
 > **Revisão 22 — 19/09/2026:** por decisão do proprietário, o MFA/TOTP foi removido do acesso operacional para destravar o uso do sistema. A migration `supabase/migrations/20260919000400_remove_mfa_requirement.sql` mantém os dois masters, perfil ativo, e-mail confirmado, sessão válida e expiração de oito horas, mas não exige mais AAL2. O frontend agora usa somente e-mail e senha. Essa decisão reduz a proteção contra acesso indevido e deve ser reavaliada antes de ampliar o sistema.
 
+> **Revisão 23 — 21/09/2026:** adicionada à Visão geral a projeção de recebimentos por mês. O usuário pode escolher um mês de referência e consultar cards do mês selecionado, do mês seguinte e de dois meses à frente. O valor exibido considera somente o saldo ainda não recebido das parcelas com vencimento dentro de cada mês, sem incluir parcelas pagas ou canceladas.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -156,6 +158,7 @@ Cards recomendados:
 - contas a pagar próximas do vencimento;
 - parcelas de clientes próximas do vencimento;
 - parcelas em atraso.
+- projeção de recebimentos para o mês escolhido, o mês seguinte e os dois meses seguintes;
 
 Gráficos recomendados:
 
@@ -1233,3 +1236,11 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 4. Implementar relatórios e auditoria visual para a rotina diária.
 5. Construir seleção automática de conteúdo e integração oficial com Instagram, se aprovada.
 6. Avaliar WhatsApp Business Platform oficial, somente com orçamento e consentimento definidos.
+
+### 19.4 Projeção de recebimentos na Visão geral
+
+- A projeção consulta `resumo_parcelas_recebiveis`, usando `due_date`, `amount`, `paid_amount` e `effective_status`.
+- O mês de referência é escolhido pelo usuário em um campo de mês.
+- Cada card mostra o mês, o valor em aberto e a quantidade de parcelas previstas.
+- O valor de cada parcela é calculado como `max(amount - paid_amount, 0)`.
+- Parcelas pagas ou canceladas não entram na projeção. Atrasos entram somente no mês correspondente ao vencimento original.
