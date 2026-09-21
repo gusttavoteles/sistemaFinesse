@@ -37,6 +37,13 @@
 > **Revisão 22 — 19/09/2026:** por decisão do proprietário, o MFA/TOTP foi removido do acesso operacional para destravar o uso do sistema. A migration `supabase/migrations/20260919000400_remove_mfa_requirement.sql` mantém os dois masters, perfil ativo, e-mail confirmado, sessão válida e expiração de oito horas, mas não exige mais AAL2. O frontend agora usa somente e-mail e senha. Essa decisão reduz a proteção contra acesso indevido e deve ser reavaliada antes de ampliar o sistema.
 
 > **Revisão 23 — 21/09/2026:** adicionada à Visão geral a projeção de recebimentos por mês. O usuário pode escolher um mês de referência e consultar cards do mês selecionado, do mês seguinte e de dois meses à frente. O valor exibido considera somente o saldo ainda não recebido das parcelas com vencimento dentro de cada mês, sem incluir parcelas pagas ou canceladas.
+> **Revisão 24 — 21/09/2026:** edição de cadastros preservando UUID e histórico, download autenticado das fotos, criação atômica de pedido com parcelas vinculadas e correção da visão geral/financeiro. As regras detalhadas e os limites de edição estão na seção 20. Migration: `20260921000600_linked_orders_and_dashboard.sql`.
+
+> **Revisão 25 — 21/09/2026:** criada a programação semanal de conteúdo. Ao solicitar a programação, o sistema sorteia fotos de produtos ativos, agenda até 5 por dia de segunda a domingo, impede repetição da mesma imagem na semana, informa eventual falta de fotos e disponibiliza o download autenticado das fotos de cada dia. A regra está na seção 20.5 e na migration `20260921000700_weekly_content_scheduler.sql`.
+
+> **Revisão 26 — 21/09/2026:** criada a aba **Reativação** para relacionamento pós-compra. Todos os clientes cadastrados, inclusive inativos, aparecem na lista. Cada cliente possui duas mensagens prontas: aviso de novas peças e convite para comprar novamente. Os botões preparam o contato manual, copiam a mensagem e abrem o WhatsApp quando há telefone cadastrado. Regras detalhadas na seção 20.6.
+
+> **Revisão 27 — 21/09/2026:** adicionada a visão de lucro estimativo na tela Produtos e estoque. O sistema calcula lucro unitário, margem média por produto e lucro estimado do estoque usando custo de aquisição e preço vigente. Esses indicadores são projeções de catálogo, não substituem o lucro realizado das vendas. Regras detalhadas na seção 20.7.
 
 ## 1. Visão do produto
 
@@ -125,12 +132,13 @@ Para reduzir risco, não começar com emissão fiscal, integração bancária au
 4. **Controle financeiro**
 5. **Estoque**
 6. **Produtos**
-7. **Clientes**
-8. **Fornecedores**
-9. **Conteúdo Instagram**
-10. **Relatórios**
-11. **Configurações**
-12. **Auditoria** — visível apenas para administrador.
+  7. **Clientes**
+  8. **Reativação de clientes**
+  9. **Fornecedores**
+  10. **Conteúdo Instagram**
+  11. **Relatórios**
+  12. **Configurações**
+  13. **Auditoria** — visível apenas para administrador.
 
 ### 3.2 Dashboard
 
@@ -359,14 +367,11 @@ Fornecedor:
 
 ### 3.9 Conteúdo Instagram
 
-O sistema poderá selecionar produtos para sugerir conteúdo com base em regras como:
+O sistema poderá selecionar fotos vinculadas a produtos para sugerir conteúdo com base em regras como:
 
 - produto ativo;
-- estoque disponível;
-- produto sem publicação recente;
-- lançamento recente;
-- categoria em destaque;
-- maior margem ou maior prioridade comercial.
+- caminho de imagem válido no bucket privado;
+- imagem ainda não usada na semana selecionada.
 
 Cada conteúdo poderá conter:
 
@@ -378,7 +383,7 @@ Cada conteúdo poderá conter:
 - status: sugestão, aprovado, agendado, publicado ou erro;
 - usuário que aprovou.
 
-O calendário semanal deve permitir revisar, aprovar, editar e reordenar as sugestões antes da publicação. A publicação automática dependerá de uma conta Instagram profissional, permissões da Meta e um serviço agendador.
+O calendário semanal deve permitir revisar, aprovar e editar as sugestões antes da publicação. A programação automática de fotos é interna ao sistema; a publicação automática no Instagram continua fora do MVP e dependerá de uma conta Instagram profissional, permissões da Meta e um serviço agendador.
 
 ### 3.10 Relatórios
 
@@ -803,12 +808,13 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 ### 6.7 Instagram
 
-1. O sistema deve sugerir apenas produtos ativos e com estoque disponível.
-2. Uma sugestão não pode ser publicada sem aprovação do usuário responsável.
-3. O sistema deve evitar selecionar repetidamente o mesmo produto dentro de um intervalo configurável.
-4. Conteúdo agendado precisa registrar horário, status, tentativa e erro retornado pela plataforma.
-5. Publicação automática depende de conta Instagram profissional, permissões e credenciais válidas da Meta.
-6. A publicação semanal deve ser executada por uma rotina agendada no backend ou em um serviço de automação autorizado.
+1. A programação automática considera somente fotos vinculadas a produtos ativos e com caminho de Storage válido.
+2. Ao ser solicitada, a programação cria até 5 publicações por dia, de segunda-feira a domingo, nos horários de 09:00, 11:30, 14:00, 17:00 e 20:00 no fuso `America/Sao_Paulo`.
+3. Uma mesma `image_path` não pode aparecer mais de uma vez na mesma semana. Publicações `scheduled`, `approved` e `published` bloqueiam a reutilização; uma publicação `failed` não bloqueia nova tentativa.
+4. A programação preenche apenas vagas vazias e não substitui publicações manuais, aprovadas ou já publicadas.
+5. Se houver menos de 35 fotos elegíveis e únicas, o sistema agenda o máximo disponível e informa a quantidade faltante; não reutiliza fotos para completar a semana.
+6. Repetir a mesma solicitação é idempotente por `p_request_id`; solicitar novamente a mesma semana não cria duplicatas.
+7. Baixar fotos usa a sessão autenticada e o bucket privado. O usuário baixa as fotos de cada dia individualmente pelo navegador e publica manualmente no Instagram no MVP.
 
 ## 7. Fluxos essenciais
 
@@ -850,12 +856,12 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 ### 7.5 Conteúdo semanal do Instagram
 
-1. Sistema identifica produtos elegíveis conforme as regras de seleção.
-2. Sistema cria sugestões com imagem, legenda e hashtags.
-3. Usuário revisa, edita e aprova as sugestões.
-4. Sistema cria o calendário semanal.
-5. Uma rotina agendada tenta publicar cada conteúdo no horário definido.
-6. Sistema registra publicado ou falhou e mostra o motivo quando houver erro.
+1. Usuário escolhe a segunda-feira da semana e solicita a programação.
+2. O backend sorteia fotos elegíveis sem repetir a mesma imagem dentro da semana.
+3. O backend cria até 5 itens por dia, com legenda, hashtags, produto, horário e status `scheduled`.
+4. Se houver menos fotos que o necessário, a tela informa o total criado e a quantidade faltante.
+5. Usuário revisa, edita ou marca os itens conforme o fluxo manual de conteúdo.
+6. Usuário usa o botão de cada dia para baixar as fotos e faz a publicação manual no Instagram.
 
 ## 8. Organização sugerida do projeto
 
@@ -1216,6 +1222,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - `src/app/PasswordSetupScreen.jsx`: definição de senha no primeiro acesso por convite ou recuperação.
 - `src/app/Dashboard.jsx`: shell, navegação e dashboard inicial.
 - `src/app/CustomersPage.jsx`: cadastro e busca de clientes.
+- `src/app/WinbackPage.jsx`: reativação de todos os clientes cadastrados, mensagens prontas e contato manual.
 - `src/app/ProductsPage.jsx`: peças, preços, imagens e ajustes de estoque.
 - `src/app/OrdersPage.jsx`: pedidos manuais, itens, venda e pagamentos.
 - `src/app/ReceivablesPage.jsx`: cobranças, parcelas, mensagens e recebimentos.
@@ -1244,3 +1251,76 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Cada card mostra o mês, o valor em aberto e a quantidade de parcelas previstas.
 - O valor de cada parcela é calculado como `max(amount - paid_amount, 0)`.
 - Parcelas pagas ou canceladas não entram na projeção. Atrasos entram somente no mês correspondente ao vencimento original.
+
+## 20. Revisão de fluxos solicitada em 21/09/2026
+
+### 20.1 Edição e propagação
+
+- Clientes, produtos, contas financeiras e conteúdo não publicado passam a oferecer edição do mesmo registro (UUID preservado), nunca exclusão/recriação para corrigir dados.
+- Nome/telefone/e-mail do cliente são dados canônicos. Pedidos, cobranças, mensagens e dashboard consultam os relacionamentos e mostram os dados atualizados ao abrir/recarregar a tela. Não há sincronização em tempo real entre computadores nesta revisão.
+- Nome/preço/custo do produto usados numa venda são snapshots históricos: editar o catálogo não reescreve itens nem valores de pedidos existentes. Estoque continua sendo alterado apenas por movimentação com motivo.
+- Pedidos oferecem edição de cliente e observações. Trocar o cliente é permitido somente antes de qualquer recebimento e atualiza também o acordo vinculado, na mesma transação. Observações não alteram estoque ou financeiro. Alteração de itens, total ou plano após gerar cobrança exige fluxo de revisão/renegociação próprio; não será feita implicitamente por edição cadastral.
+- Conta permite editar nome, tipo e instituição; não permite reescrever saldo inicial nem lançamentos recebidos. Conteúdo publicado é histórico; editar conteúdo ainda não publicado retorna à sugestão para nova aprovação.
+- Parcela em aberto permite corrigir vencimento individual, com motivo auditado. Não altera valor, quantidade, pagamentos, nem as demais datas do acordo. Parcelas quitadas/canceladas e acordos inativos permanecem bloqueados.
+
+### 20.2 Fotos privadas
+
+- Cada foto vinculada à peça terá ação Baixar foto, usando sessão autenticada no bucket privado `product-images`; não tornar o bucket público.
+- Upload mantém JPEG/PNG/WebP e limite de 5 MiB. Adicionar foto durante edição preserva as fotos anteriores. Falha da foto deve ser informada separadamente do sucesso do cadastro, sem incentivar cadastro duplicado.
+
+### 20.3 Pedido e cobrança vinculada
+
+- Ao cadastrar pedido, informar se haverá cobrança parcelada, quantidade, primeiro vencimento e dia mensal. Cliente é obrigatório para parcelamento. O plano abrange o total do pedido (itens + frete − desconto), sem entrada automática.
+- Pedido, itens, acordo e parcelas são criados numa única transação idempotente. Falha em qualquer etapa desfaz toda a criação. Um pedido possui no máximo um acordo vinculado; cobranças antigas independentes não são associadas por suposição.
+- Parcelas aparecem em Cobranças imediatamente após o cadastro, mesmo antes de Marcar vendido. Isso não baixa estoque nem gera entrada financeira. Marcar vendido continua baixando estoque uma única vez.
+- Receber parcela vinculada registra um único lançamento financeiro e sincroniza o pagamento parcial/integral do pedido. O botão de pagamento desses pedidos direciona para Cobranças, evitando recebimentos paralelos duplicados. Parcelas do cartão são metadados de um pagamento recebido e não substituem um plano de cobrança.
+- Mantidos: divisão mensal, até 120 parcelas, mínimo de R$ 0,01 por parcela, ajuste de centavos na última parcela e último dia do mês quando necessário. Mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido.
+
+### 20.4 Visão geral e validação
+
+- Corrigir status `canceled`, leitura trocada de resultados e término de carregamento em falhas. Mostrar erro, não zero fictício, quando os dados não puderem ser consultados.
+- Saldo = saldo inicial das contas ativas + todas as entradas pagas − todas as saídas pagas dessas contas. Dashboard e Financeiro usam a mesma agregação no banco, sem limitar cálculo aos últimos 100/1.000 registros.
+- A receber = saldo restante de parcelas de acordos ativos; pedidos = pedidos não cancelados; produtos/clientes = cadastros ativos. Fluxo mostra movimentos pagos dos últimos sete dias; próximos vencimentos incluem atrasos e próximos sete dias; pedidos recentes mostram registros reais.
+- Recarregar a visão geral ao retornar de outro módulo, voltar o foco à janela ou clicar Atualizar.
+- Implementação e evidências desta revisão: migration `20260921000600_linked_orders_and_dashboard.sql` aplicada/verificada no projeto remoto `rswbuqkwdwttylppnhcw` em 21/09/2026. A confirmação remota encontrou as duas colunas de vínculo, as quatro RPCs públicas (`create_manual_order`, `edit_order_details`, `edit_installment_due_date`, `dashboard_summary`), as duas views (`resumo_parcelas_recebiveis`, `saldos_contas_financeiras`) e os triggers de sincronização/proteção.
+- `npm test`: 19 cenários aprovados, incluindo rollback atômico, idempotência, recebimento parcial/integral sem duplicação financeira, propagação de cliente, preservação de snapshots, correção auditada de vencimento, segurança de fotos, dashboard com mais de 1.000 lançamentos e programação semanal sem repetição.
+- `npm run build`: aprovado. A saída compilada foi atualizada na raiz para GitHub Pages. O aviso de tamanho do bundle não impede a publicação e fica registrado para futura divisão de módulos.
+- QA visual isolado em `tests/browser-preview/`: aprovado para edição de cliente/produto/conta/conteúdo, parcelamento de pedido, filtro de cobranças, mensagem com saldo restante, download autenticado simulado e recuperação da visão geral após erro. O fixture não usa o Supabase remoto nem dados reais.
+
+### 20.5 Programação semanal de fotos
+
+- A tela Conteúdo trabalha com uma semana de segunda-feira a domingo. Se o usuário escolher outra data, a interface normaliza para a segunda-feira correspondente.
+- O botão **Programar esta semana** é a única ação que dispara a seleção automática. Não existe publicação automática no Instagram neste MVP.
+- O banco sorteia fotos ligadas a produtos ativos, usando o `storage_path` do bucket privado `product-images`. A seleção é aleatória a cada solicitação, mas respeita o bloqueio de repetição dentro da semana.
+- Cada dia possui cinco horários fixos: 09:00, 11:30, 14:00, 17:00 e 20:00, no fuso `America/Sao_Paulo`. A programação cria no máximo uma foto por horário.
+- Publicações existentes nos status `approved`, `scheduled` ou `published` ocupam a vaga e suas imagens não podem ser reutilizadas na semana. Publicações `failed` não contam como bloqueio e podem ser tentadas novamente.
+- A rotina nunca apaga, reordena ou sobrescreve publicações já existentes. Ela somente completa vagas abaixo de cinco por dia.
+- Com menos de 35 fotos elegíveis e únicas, a rotina agenda todas as disponíveis e retorna `missing` com a quantidade que faltou. A tela exibe esse aviso e não repete fotos para completar a meta.
+- O `p_request_id` torna a operação idempotente: repetir a mesma requisição retorna o resultado anterior sem inserir novamente. Uma nova solicitação para a mesma semana também não cria novas imagens se a semana já estiver completa.
+- O botão **Baixar fotos** executa um download autenticado por imagem do dia, com nomes de arquivo contendo data, ordem e produto. O navegador pode solicitar autorização para múltiplos downloads. O sistema não cria ZIP nesta etapa.
+- A implementação está em `supabase/migrations/20260921000700_weekly_content_scheduler.sql`, na RPC `generate_weekly_content_schedule(date, uuid)`, e na tela `src/app/ContentPage.jsx`.
+- Validação local: os 19 testes confirmam 35 imagens distribuídas em 7 dias com 5 únicas por dia, reexecução idempotente e comportamento de escassez sem repetição. A migration `20260921000700_weekly_content_scheduler.sql` foi aplicada no Supabase remoto em 21/09/2026; a verificação confirmou a RPC e os índices `imagens_produtos_storage_path_idx` e `publicacoes_conteudo_image_schedule_idx`. Nenhum post real foi criado durante a validação remota.
+
+### 20.6 Reativação de clientes
+
+- A aba **Reativação** lista todos os registros da tabela `clientes`, sem filtrar pelo campo `active`. Assim, clientes ativos e inativos continuam disponíveis para consulta e contato, conforme solicitado.
+- A lista permite buscar por nome, telefone ou e-mail. A edição do cadastro continua sendo feita na aba **Clientes**, mantendo uma única fonte de dados para nome e telefone.
+- Cada cliente possui duas ações: **Avisar novas peças** e **Convidar para comprar novamente**. As mensagens usam o nome atual do cadastro no momento do clique.
+- Mensagem de novas peças: `Olá, {nome}! Tudo bem? Chegaram peças novas em prata 925 na Finesse Silver e lembrei de você. Se quiser, posso te enviar as novidades. Será um prazer te atender! ✨`
+- Mensagem de recompra: `Olá, {nome}! Tudo bem? Sentimos sua falta na Finesse Silver. Temos novidades em prata 925 e será um prazer te ajudar a escolher algo novo para você. Quer ver algumas opções? ✨`
+- Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
+- Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
+- O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
+- A implementação está em `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a funcionalidade consulta os clientes já existentes com RLS e autenticação master.
+
+### 20.7 Lucro estimativo de produtos
+
+- A tela **Produtos e estoque** mostra o lucro estimado por peça no cadastro e três indicadores gerais: lucro médio por peça, margem média e lucro estimado do estoque.
+- O preço vigente usado no cálculo é o `promotional_price` quando ele existe; caso contrário, usa o `sale_price`. O custo usado é o `cost_price` atual do produto.
+- Lucro unitário estimado = preço vigente − custo de aquisição. Margem estimada = lucro unitário ÷ preço vigente × 100.
+- O lucro médio por peça é a média aritmética do lucro unitário dos produtos ativos que possuem custo e preço maiores que zero. Não é uma média ponderada por estoque ou vendas.
+- O lucro estimado em estoque = lucro unitário × quantidade atual em estoque, somado para os produtos elegíveis. Ele representa uma projeção caso todo o estoque seja vendido pelo preço vigente.
+- Produtos sem custo informado ou sem preço válido continuam no catálogo, mas não entram nos indicadores e exibem **Informe o custo** no cartão.
+- Os cálculos não descontam frete, taxas, impostos, descontos adicionais, custo financeiro, embalagem ou despesas operacionais. Portanto, o valor é uma estimativa bruta de catálogo, não lucro líquido nem lucro contábil.
+- Alterar custo, preço promocional ou preço de venda atualiza a projeção do catálogo. Isso não altera snapshots de preço/custo já gravados em itens de pedidos e não reescreve o histórico financeiro.
+- A implementação está em `src/app/ProductsPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração estrutural no banco.

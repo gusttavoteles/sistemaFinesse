@@ -7,11 +7,13 @@ import { ProductsPage } from './ProductsPage'
 import { OrdersPage } from './OrdersPage'
 import { FinancePage } from './FinancePage'
 import { ContentPage } from './ContentPage'
+import { WinbackPage } from './WinbackPage'
 
 const navigation = [
   { id: 'dashboard', label: 'Visão geral', icon: '⌂' },
   { id: 'orders', label: 'Pedidos', icon: '▣' },
   { id: 'customers', label: 'Clientes', icon: '♧' },
+  { id: 'winback', label: 'Reativação', icon: '↻' },
   { id: 'receivables', label: 'Cobranças', icon: '◷' },
   { id: 'inventory', label: 'Produtos e estoque', icon: '◇' },
   { id: 'finance', label: 'Financeiro', icon: '◷' },
@@ -41,6 +43,8 @@ function monthLabel(date) {
 
 export function Dashboard({ session }) {
   const [active, setActive] = useState('dashboard')
+  const [orderFilter, setOrderFilter] = useState(null)
+  const [refresh, setRefresh] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [metrics, setMetrics] = useState(emptyMetrics)
   const [loading, setLoading] = useState(true)
@@ -50,35 +54,34 @@ export function Dashboard({ session }) {
   const [projectionRows, setProjectionRows] = useState([])
 
   useEffect(() => {
-    let mounted = true
+    if (active !== 'dashboard') return undefined
+    let mounted = true, version = 0
     async function load() {
-      const results = await Promise.all([
-        supabase.from('produtos').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('clientes').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('pedidos').select('id', { count: 'exact', head: true }).neq('status', 'cancelled'),
-        supabase.from('resumo_parcelas_recebiveis').select('amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
-        supabase.from('contas_financeiras').select('initial_balance'),
-        supabase.from('transacoes_financeiras').select('direction,amount').eq('status', 'paid'),
-        supabase.from('perfis').select('full_name').eq('id', session.user.id).maybeSingle(),
-      ])
-      if (!mounted) return
-      const firstError = results.find((result) => result.error)?.error
-      if (firstError) setError('Não foi possível carregar todos os dados do painel.')
-      setMetrics({
-        products: results[0].count,
-        customers: results[1].count,
-        orders: results[2].count,
-        receivables: results[3].data?.reduce((sum, row) => sum + Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)), 0) ?? null,
-      })
-      setProjectionRows(results[3].data ?? [])
-      const balance = (results[4].data ?? []).reduce((sum, row) => sum + Number(row.initial_balance || 0), 0) + (results[5].data ?? []).reduce((sum, row) => sum + (row.direction === 'in' ? Number(row.amount) : -Number(row.amount)), 0)
-      setMetrics((current) => ({ ...current, balance }))
-      if (results[6].data?.full_name) setProfileName(results[6].data.full_name)
-      setLoading(false)
+      const currentVersion = ++version
+      setLoading(true); setError('')
+      try {
+        const [summary, profile, projection] = await Promise.all([
+          supabase.rpc('dashboard_summary'),
+          supabase.from('perfis').select('full_name').eq('id', session.user.id).maybeSingle(),
+          supabase.from('resumo_parcelas_recebiveis').select('due_date,amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
+        ])
+        if (!mounted || currentVersion !== version) return
+        if (summary.error || profile.error || projection.error || !summary.data) throw summary.error || profile.error || projection.error || new Error('Dados indisponíveis')
+        setMetrics(summary.data)
+        setProjectionRows(projection.data ?? [])
+        if (profile.data?.full_name) setProfileName(profile.data.full_name)
+      } catch {
+        if (mounted && currentVersion === version) {
+          setMetrics(emptyMetrics())
+          setProjectionRows([])
+          setError('Não foi possível carregar a visão geral. Verifique a conexão e sua sessão e clique em Atualizar.')
+        }
+      } finally { if (mounted && currentVersion === version) setLoading(false) }
     }
-    load()
-    return () => { mounted = false }
-  }, [session.user.id])
+    void load()
+    window.addEventListener('focus', load)
+    return () => { mounted = false; window.removeEventListener('focus', load) }
+  }, [session.user.id, active, refresh])
 
   useEffect(() => {
     if (!menuOpen) return undefined
@@ -104,6 +107,7 @@ export function Dashboard({ session }) {
 
   function selectPage(id) {
     setActive(id)
+    if (id === 'receivables') setOrderFilter(null)
     setMenuOpen(false)
   }
 
@@ -138,19 +142,22 @@ export function Dashboard({ session }) {
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={setActive} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} /> : active === 'customers' ? <CustomersPage /> : active === 'receivables' ? <ReceivablesPage /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} /> : active === 'customers' ? <CustomersPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
   </div>
 }
 
-function DashboardHome({ greeting, profileName, metrics, loading, error, setActive, projectionMonth, setProjectionMonth, projectionCards }) {
+function DashboardHome({ greeting, profileName, metrics, loading, error, setActive, onRefresh, projectionMonth, setProjectionMonth, projectionCards }) {
+  const available = !loading && !error
+  const shortDate = (value) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${value}T12:00:00`))
+  const empty = (message) => <div className="loading-row">{loading ? 'Carregando…' : error ? 'Dados indisponíveis. Tente atualizar.' : message}</div>
   return <div className="page-content">
-    <div className="page-heading"><div><span className="eyebrow">Visão geral</span><h1>{greeting}, {profileName.split(' ')[0]}.</h1><p>Acompanhe o movimento da sua loja de prata 925.</p></div><button className="secondary-button">Hoje <span>⌄</span></button></div>
-    {error && <div className="alert error inline-alert"><strong>Dados incompletos</strong><span>{error}</span></div>}
+    <div className="page-heading"><div><span className="eyebrow">Visão geral</span><h1>{greeting}, {profileName.split(' ')[0]}.</h1><p>Acompanhe o movimento da sua loja de prata 925.</p></div><button className="secondary-button" disabled={loading} onClick={onRefresh}>{loading ? 'Atualizando…' : 'Atualizar'}</button></div>
+    {error && <div className="alert error inline-alert" role="alert"><strong>Dados indisponíveis</strong><span>{error}</span></div>}
     <section className="metric-grid">
-      <MetricCard label="Saldo disponível" value={metrics.balance == null ? '—' : money(metrics.balance)} detail="Contas financeiras" accent="gold" loading={loading} />
-      <MetricCard label="A receber" value={metrics.receivables == null ? '—' : money(metrics.receivables)} detail="Parcelas pendentes" accent="lavender" loading={loading} />
-      <MetricCard label="Produtos ativos" value={metrics.products == null ? '—' : metrics.products} detail="Peças cadastradas" accent="blue" loading={loading} />
+      <MetricCard label="Saldo disponível" value={metrics.balance == null ? '—' : money(metrics.balance)} detail="Contas ativas · somente movimentos pagos" accent="gold" loading={loading} />
+      <MetricCard label="A receber" value={metrics.receivables == null ? '—' : money(metrics.receivables)} detail="Saldo restante das parcelas" accent="lavender" loading={loading} />
+      <MetricCard label="Produtos ativos" value={metrics.products == null ? '—' : metrics.products} detail="Produtos cadastrados" accent="blue" loading={loading} />
       <MetricCard label="Pedidos" value={metrics.orders == null ? '—' : metrics.orders} detail="Pedidos não cancelados" accent="peach" loading={loading} />
     </section>
     <section className="panel projection-panel">
@@ -158,10 +165,16 @@ function DashboardHome({ greeting, profileName, metrics, loading, error, setActi
       <div className="projection-cards">{projectionCards.map((card) => <article className="projection-card" key={card.date.toISOString()}><div className="projection-card-top"><span>{card.label}</span><i>◷</i></div><strong>{loading ? '—' : money(card.amount)}</strong><small>{monthLabel(card.date)} · {card.count} {card.count === 1 ? 'parcela' : 'parcelas'}</small></article>)}</div>
     </section>
     <section className="dashboard-grid">
-      <article className="panel flow-panel"><div className="panel-heading"><div><span className="eyebrow">Movimento</span><h2>Fluxo financeiro</h2></div><span className="muted-label">Últimos 7 dias</span></div><div className="chart-empty"><div className="chart-grid-lines" /><div className="chart-line income" /><div className="chart-line expense" /><div className="chart-empty-copy"><span className="empty-icon">◌</span><strong>Ainda não há movimentações</strong><p>Os lançamentos aparecerão aqui quando houver pagamentos ou despesas registrados.</p></div></div></article>
-      <article className="panel attention-panel"><div className="panel-heading"><div><span className="eyebrow">Atenção</span><h2>Próximas cobranças</h2></div><button className="link-button" onClick={() => setActive('receivables')}>Ver todas ↗</button></div><div className="empty-list"><span className="empty-icon">◷</span><strong>Nenhuma cobrança próxima</strong><p>Cadastre um cliente com pagamento parcelado para acompanhar os vencimentos.</p></div></article>
+      <article className="panel flow-panel"><div className="panel-heading"><div><span className="eyebrow">Movimento</span><h2>Fluxo financeiro</h2></div><span className="muted-label">Últimos 7 dias</span></div>
+        {available && metrics.flow?.some((day) => Number(day.income) || Number(day.expense)) ? <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Dia</th><th>Entradas</th><th>Saídas</th></tr></thead><tbody>{metrics.flow.map((day) => <tr key={day.day}><td>{shortDate(day.day)}</td><td className="income-text">{money(day.income)}</td><td className="expense-text">{money(day.expense)}</td></tr>)}</tbody></table></div> : empty('Nenhum movimento pago nos últimos 7 dias.')}
+      </article>
+      <article className="panel attention-panel"><div className="panel-heading"><div><span className="eyebrow">Atenção</span><h2>Próximas cobranças</h2></div><button className="link-button" onClick={() => setActive('receivables')}>Ver todas ↗</button></div>
+        {available && metrics.upcoming?.length ? <div className="dashboard-records">{metrics.upcoming.map((row) => <div className="dashboard-record" key={row.id}><span><strong>{row.customer_name}</strong><small className={row.effective_status === 'overdue' ? 'overdue-text' : ''}>{row.effective_status === 'overdue' ? 'Em atraso · ' : 'Vencimento · '}{shortDate(row.due_date)}</small></span><b>{money(row.remaining)}</b></div>)}</div> : empty('Nenhuma parcela em atraso ou vencendo nos próximos 7 dias.')}
+      </article>
     </section>
-    <section className="dashboard-grid lower-grid"><article className="panel"><div className="panel-heading"><div><span className="eyebrow">Operação</span><h2>Pedidos recentes</h2></div><button className="link-button" onClick={() => setActive('orders')}>Ver pedidos ↗</button></div><div className="empty-table"><span className="empty-icon">▣</span><strong>Nenhum pedido cadastrado</strong><p>Os pedidos manuais da loja aparecerão neste espaço.</p></div></article><article className="panel quick-panel"><div className="panel-heading"><div><span className="eyebrow">Atalhos</span><h2>Ações rápidas</h2></div></div><div className="quick-actions"><button onClick={() => setActive('orders')}><span>＋</span><div><strong>Novo pedido</strong><small>Registrar uma venda manual</small></div><b>↗</b></button><button onClick={() => setActive('receivables')}><span>♧</span><div><strong>Nova cobrança</strong><small>Adicionar parcela de cliente</small></div><b>↗</b></button><button onClick={() => setActive('inventory')}><span>◇</span><div><strong>Adicionar produto</strong><small>Cadastrar uma peça</small></div><b>↗</b></button></div></article></section>
+    <section className="dashboard-grid lower-grid"><article className="panel"><div className="panel-heading"><div><span className="eyebrow">Operação</span><h2>Pedidos recentes</h2></div><button className="link-button" onClick={() => setActive('orders')}>Ver pedidos ↗</button></div>
+      {available && metrics.recent_orders?.length ? <div className="dashboard-records">{metrics.recent_orders.map((order) => <div className="dashboard-record" key={order.id}><span><strong>Pedido #{order.order_number}</strong><small>{order.customer_name || 'Cliente não informado'}{order.status === 'canceled' ? ' · Cancelado' : ''}</small></span><b>{money(order.total_amount)}</b></div>)}</div> : empty('Nenhum pedido cadastrado.')}
+    </article><article className="panel quick-panel"><div className="panel-heading"><div><span className="eyebrow">Atalhos</span><h2>Ações rápidas</h2></div></div><div className="quick-actions"><button onClick={() => setActive('orders')}><span>＋</span><div><strong>Novo pedido</strong><small>Registrar uma venda manual</small></div><b>↗</b></button><button onClick={() => setActive('receivables')}><span>♧</span><div><strong>Nova cobrança</strong><small>Acompanhar parcelas</small></div><b>↗</b></button><button onClick={() => setActive('inventory')}><span>◇</span><div><strong>Adicionar produto</strong><small>Cadastrar uma peça</small></div><b>↗</b></button></div></article></section>
   </div>
 }
 
