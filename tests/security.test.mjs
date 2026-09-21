@@ -35,6 +35,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/20260918000300_mvp_
 await db.exec(await readFile(new URL('../supabase/migrations/20260919000400_remove_mfa_requirement.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260919000500_portuguese_table_names.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260921000600_linked_orders_and_dashboard.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260921000700_weekly_content_scheduler.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.master_access(slot,email,user_id) values(1,'master@example.test','${master}');`);
 const account = (await db.query('select id from public.contas_financeiras limit 1')).rows[0].id;
@@ -265,6 +266,33 @@ test('new RPCs and private photo reads remain master-only',()=>tx(async()=>{
   await db.exec('reset role; set local role anon');
   await denied('select public.dashboard_summary()');
   await denied('select * from public.saldos_contas_financeiras');
+}));
+
+test('weekly content scheduler selects five unique photos per day and is safe to rerun',()=>tx(async()=>{
+  await asUser();
+  for(let n=1;n<=35;n++) {
+    const p=(await db.query("insert into public.produtos(name,active) values($1,true) returning id",[`Photo ${n}`])).rows[0].id;
+    await db.query("insert into public.imagens_produtos(product_id,storage_path,is_cover) values($1,$2,true)",[p,`photos/${n}.jpg`]);
+  }
+  const key=(await db.query('select gen_random_uuid() id')).rows[0].id;
+  const first=(await db.query("select public.generate_weekly_content_schedule('2026-01-05',$1) data",[key])).rows[0].data;
+  assert.equal(first.created,35,JSON.stringify(first)); assert.equal(first.missing,0);
+  assert.equal(Number((await db.query("select count(*) n,count(distinct image_path) unique_n from public.publicacoes_conteudo where scheduled_for >= '2026-01-05'::date and scheduled_for < '2026-01-12'::date")).rows[0].n),35);
+  assert.equal(Number((await db.query("select count(*) n from (select (scheduled_for at time zone 'America/Sao_Paulo')::date day_key from public.publicacoes_conteudo where scheduled_for >= '2026-01-05'::date and scheduled_for < '2026-01-12'::date group by day_key having count(*) <> 5) x")).rows[0].n),0);
+  const replay=(await db.query("select public.generate_weekly_content_schedule('2026-01-05',$1) data",[key])).rows[0].data;
+  assert.equal(replay.replayed,true); assert.equal(Number((await db.query("select count(*) n from public.publicacoes_conteudo where scheduled_for >= '2026-01-05'::date and scheduled_for < '2026-01-12'::date")).rows[0].n),35);
+  const second=(await db.query("select public.generate_weekly_content_schedule('2026-01-05',gen_random_uuid()) data")).rows[0].data;
+  assert.equal(second.created,0); assert.equal(Number((await db.query("select count(*) n from public.publicacoes_conteudo where scheduled_for >= '2026-01-05'::date and scheduled_for < '2026-01-12'::date")).rows[0].n),35);
+}));
+test('weekly content scheduler reports shortage without repeating available photos',()=>tx(async()=>{
+  await asUser();
+  for(let n=1;n<=3;n++) {
+    const p=(await db.query("insert into public.produtos(name,active) values($1,true) returning id",[`Short ${n}`])).rows[0].id;
+    await db.query("insert into public.imagens_produtos(product_id,storage_path,is_cover) values($1,$2,true)",[p,`short/${n}.jpg`]);
+  }
+  const result=(await db.query("select public.generate_weekly_content_schedule('2026-02-02',gen_random_uuid()) data")).rows[0].data;
+  assert.equal(result.created,3); assert.equal(result.missing,32);
+  assert.equal(Number((await db.query("select count(distinct image_path) n from public.publicacoes_conteudo where scheduled_for >= '2026-02-02'::date and scheduled_for < '2026-02-09'::date")).rows[0].n),3);
 }));
 
 after(()=>db.close());

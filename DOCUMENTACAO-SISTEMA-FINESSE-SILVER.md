@@ -38,6 +38,8 @@
 
 > **Revisão 23 — 21/09/2026:** edição de cadastros preservando UUID e histórico, download autenticado das fotos, criação atômica de pedido com parcelas vinculadas e correção da visão geral/financeiro. As regras detalhadas e os limites de edição estão na seção 20. Migration: `20260921000600_linked_orders_and_dashboard.sql`.
 
+> **Revisão 24 — 21/09/2026:** criada a programação semanal de conteúdo. Ao solicitar a programação, o sistema sorteia fotos de produtos ativos, agenda até 5 por dia de segunda a domingo, impede repetição da mesma imagem na semana, informa eventual falta de fotos e disponibiliza o download autenticado das fotos de cada dia. A regra está na seção 20.5 e na migration `20260921000700_weekly_content_scheduler.sql`.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -358,14 +360,11 @@ Fornecedor:
 
 ### 3.9 Conteúdo Instagram
 
-O sistema poderá selecionar produtos para sugerir conteúdo com base em regras como:
+O sistema poderá selecionar fotos vinculadas a produtos para sugerir conteúdo com base em regras como:
 
 - produto ativo;
-- estoque disponível;
-- produto sem publicação recente;
-- lançamento recente;
-- categoria em destaque;
-- maior margem ou maior prioridade comercial.
+- caminho de imagem válido no bucket privado;
+- imagem ainda não usada na semana selecionada.
 
 Cada conteúdo poderá conter:
 
@@ -377,7 +376,7 @@ Cada conteúdo poderá conter:
 - status: sugestão, aprovado, agendado, publicado ou erro;
 - usuário que aprovou.
 
-O calendário semanal deve permitir revisar, aprovar, editar e reordenar as sugestões antes da publicação. A publicação automática dependerá de uma conta Instagram profissional, permissões da Meta e um serviço agendador.
+O calendário semanal deve permitir revisar, aprovar e editar as sugestões antes da publicação. A programação automática de fotos é interna ao sistema; a publicação automática no Instagram continua fora do MVP e dependerá de uma conta Instagram profissional, permissões da Meta e um serviço agendador.
 
 ### 3.10 Relatórios
 
@@ -802,12 +801,13 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 ### 6.7 Instagram
 
-1. O sistema deve sugerir apenas produtos ativos e com estoque disponível.
-2. Uma sugestão não pode ser publicada sem aprovação do usuário responsável.
-3. O sistema deve evitar selecionar repetidamente o mesmo produto dentro de um intervalo configurável.
-4. Conteúdo agendado precisa registrar horário, status, tentativa e erro retornado pela plataforma.
-5. Publicação automática depende de conta Instagram profissional, permissões e credenciais válidas da Meta.
-6. A publicação semanal deve ser executada por uma rotina agendada no backend ou em um serviço de automação autorizado.
+1. A programação automática considera somente fotos vinculadas a produtos ativos e com caminho de Storage válido.
+2. Ao ser solicitada, a programação cria até 5 publicações por dia, de segunda-feira a domingo, nos horários de 09:00, 11:30, 14:00, 17:00 e 20:00 no fuso `America/Sao_Paulo`.
+3. Uma mesma `image_path` não pode aparecer mais de uma vez na mesma semana. Publicações `scheduled`, `approved` e `published` bloqueiam a reutilização; uma publicação `failed` não bloqueia nova tentativa.
+4. A programação preenche apenas vagas vazias e não substitui publicações manuais, aprovadas ou já publicadas.
+5. Se houver menos de 35 fotos elegíveis e únicas, o sistema agenda o máximo disponível e informa a quantidade faltante; não reutiliza fotos para completar a semana.
+6. Repetir a mesma solicitação é idempotente por `p_request_id`; solicitar novamente a mesma semana não cria duplicatas.
+7. Baixar fotos usa a sessão autenticada e o bucket privado. O usuário baixa as fotos de cada dia individualmente pelo navegador e publica manualmente no Instagram no MVP.
 
 ## 7. Fluxos essenciais
 
@@ -849,12 +849,12 @@ O número de dias até o vencimento deve ser calculado pela data atual e não ar
 
 ### 7.5 Conteúdo semanal do Instagram
 
-1. Sistema identifica produtos elegíveis conforme as regras de seleção.
-2. Sistema cria sugestões com imagem, legenda e hashtags.
-3. Usuário revisa, edita e aprova as sugestões.
-4. Sistema cria o calendário semanal.
-5. Uma rotina agendada tenta publicar cada conteúdo no horário definido.
-6. Sistema registra publicado ou falhou e mostra o motivo quando houver erro.
+1. Usuário escolhe a segunda-feira da semana e solicita a programação.
+2. O backend sorteia fotos elegíveis sem repetir a mesma imagem dentro da semana.
+3. O backend cria até 5 itens por dia, com legenda, hashtags, produto, horário e status `scheduled`.
+4. Se houver menos fotos que o necessário, a tela informa o total criado e a quantidade faltante.
+5. Usuário revisa, edita ou marca os itens conforme o fluxo manual de conteúdo.
+6. Usuário usa o botão de cada dia para baixar as fotos e faz a publicação manual no Instagram.
 
 ## 8. Organização sugerida do projeto
 
@@ -1267,6 +1267,20 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - A receber = saldo restante de parcelas de acordos ativos; pedidos = pedidos não cancelados; produtos/clientes = cadastros ativos. Fluxo mostra movimentos pagos dos últimos sete dias; próximos vencimentos incluem atrasos e próximos sete dias; pedidos recentes mostram registros reais.
 - Recarregar a visão geral ao retornar de outro módulo, voltar o foco à janela ou clicar Atualizar.
 - Implementação e evidências desta revisão: migration `20260921000600_linked_orders_and_dashboard.sql` aplicada/verificada no projeto remoto `rswbuqkwdwttylppnhcw` em 21/09/2026. A confirmação remota encontrou as duas colunas de vínculo, as quatro RPCs públicas (`create_manual_order`, `edit_order_details`, `edit_installment_due_date`, `dashboard_summary`), as duas views (`resumo_parcelas_recebiveis`, `saldos_contas_financeiras`) e os triggers de sincronização/proteção.
-- `npm test`: 17 cenários aprovados, incluindo rollback atômico, idempotência, recebimento parcial/integral sem duplicação financeira, propagação de cliente, preservação de snapshots, correção auditada de vencimento, segurança de fotos e dashboard com mais de 1.000 lançamentos.
+- `npm test`: 19 cenários aprovados, incluindo rollback atômico, idempotência, recebimento parcial/integral sem duplicação financeira, propagação de cliente, preservação de snapshots, correção auditada de vencimento, segurança de fotos, dashboard com mais de 1.000 lançamentos e programação semanal sem repetição.
 - `npm run build`: aprovado. A saída compilada foi atualizada na raiz para GitHub Pages. O aviso de tamanho do bundle não impede a publicação e fica registrado para futura divisão de módulos.
 - QA visual isolado em `tests/browser-preview/`: aprovado para edição de cliente/produto/conta/conteúdo, parcelamento de pedido, filtro de cobranças, mensagem com saldo restante, download autenticado simulado e recuperação da visão geral após erro. O fixture não usa o Supabase remoto nem dados reais.
+
+### 20.5 Programação semanal de fotos
+
+- A tela Conteúdo trabalha com uma semana de segunda-feira a domingo. Se o usuário escolher outra data, a interface normaliza para a segunda-feira correspondente.
+- O botão **Programar esta semana** é a única ação que dispara a seleção automática. Não existe publicação automática no Instagram neste MVP.
+- O banco sorteia fotos ligadas a produtos ativos, usando o `storage_path` do bucket privado `product-images`. A seleção é aleatória a cada solicitação, mas respeita o bloqueio de repetição dentro da semana.
+- Cada dia possui cinco horários fixos: 09:00, 11:30, 14:00, 17:00 e 20:00, no fuso `America/Sao_Paulo`. A programação cria no máximo uma foto por horário.
+- Publicações existentes nos status `approved`, `scheduled` ou `published` ocupam a vaga e suas imagens não podem ser reutilizadas na semana. Publicações `failed` não contam como bloqueio e podem ser tentadas novamente.
+- A rotina nunca apaga, reordena ou sobrescreve publicações já existentes. Ela somente completa vagas abaixo de cinco por dia.
+- Com menos de 35 fotos elegíveis e únicas, a rotina agenda todas as disponíveis e retorna `missing` com a quantidade que faltou. A tela exibe esse aviso e não repete fotos para completar a meta.
+- O `p_request_id` torna a operação idempotente: repetir a mesma requisição retorna o resultado anterior sem inserir novamente. Uma nova solicitação para a mesma semana também não cria novas imagens se a semana já estiver completa.
+- O botão **Baixar fotos** executa um download autenticado por imagem do dia, com nomes de arquivo contendo data, ordem e produto. O navegador pode solicitar autorização para múltiplos downloads. O sistema não cria ZIP nesta etapa.
+- A implementação está em `supabase/migrations/20260921000700_weekly_content_scheduler.sql`, na RPC `generate_weekly_content_schedule(date, uuid)`, e na tela `src/app/ContentPage.jsx`.
+- Validação local: os 19 testes confirmam 35 imagens distribuídas em 7 dias com 5 únicas por dia, reexecução idempotente e comportamento de escassez sem repetição. A migration `20260921000700_weekly_content_scheduler.sql` foi aplicada no Supabase remoto em 21/09/2026; a verificação confirmou a RPC e os índices `imagens_produtos_storage_path_idx` e `publicacoes_conteudo_image_schedule_idx`. Nenhum post real foi criado durante a validação remota.
