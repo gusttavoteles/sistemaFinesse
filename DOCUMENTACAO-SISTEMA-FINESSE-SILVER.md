@@ -42,6 +42,8 @@
 
 > **Revisão 25 — 21/09/2026:** criada a aba **Reativação** para relacionamento pós-compra. Todos os clientes cadastrados, inclusive inativos, aparecem na lista. Cada cliente possui duas mensagens prontas: aviso de novas peças e convite para comprar novamente. Os botões preparam o contato manual, copiam a mensagem e abrem o WhatsApp quando há telefone cadastrado. Regras detalhadas na seção 20.6.
 
+> **Revisão 26 — 21/09/2026:** adicionada a visão de lucro estimativo na tela Produtos e estoque. O sistema calcula lucro unitário, margem média por produto e lucro estimado do estoque usando custo de aquisição e preço vigente. Esses indicadores são projeções de catálogo, não substituem o lucro realizado das vendas. Regras detalhadas na seção 20.7.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1300,3 +1302,15 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
 - O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
 - A implementação está em `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a funcionalidade consulta os clientes já existentes com RLS e autenticação master.
+
+### 20.7 Lucro estimativo de produtos
+
+- A tela **Produtos e estoque** mostra o lucro estimado por peça no cadastro e três indicadores gerais: lucro médio por peça, margem média e lucro estimado do estoque.
+- O preço vigente usado no cálculo é o `promotional_price` quando ele existe; caso contrário, usa o `sale_price`. O custo usado é o `cost_price` atual do produto.
+- Lucro unitário estimado = preço vigente − custo de aquisição. Margem estimada = lucro unitário ÷ preço vigente × 100.
+- O lucro médio por peça é a média aritmética do lucro unitário dos produtos ativos que possuem custo e preço maiores que zero. Não é uma média ponderada por estoque ou vendas.
+- O lucro estimado em estoque = lucro unitário × quantidade atual em estoque, somado para os produtos elegíveis. Ele representa uma projeção caso todo o estoque seja vendido pelo preço vigente.
+- Produtos sem custo informado ou sem preço válido continuam no catálogo, mas não entram nos indicadores e exibem **Informe o custo** no cartão.
+- Os cálculos não descontam frete, taxas, impostos, descontos adicionais, custo financeiro, embalagem ou despesas operacionais. Portanto, o valor é uma estimativa bruta de catálogo, não lucro líquido nem lucro contábil.
+- Alterar custo, preço promocional ou preço de venda atualiza a projeção do catálogo. Isso não altera snapshots de preço/custo já gravados em itens de pedidos e não reescreve o histórico financeiro.
+- A implementação está em `src/app/ProductsPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração estrutural no banco.
