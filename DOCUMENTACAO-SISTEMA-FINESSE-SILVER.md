@@ -56,7 +56,9 @@
 
 > **Revisão 33 — 22/09/2026:** cadastrada a chave PIX pública `finessesuporte.25@gmail.com` no modelo de cobrança. As mensagens passaram a usar caracteres Unicode explícitos e normalização NFC na cópia para preservar emojis, corações, gemas e emojis de opções numeradas. O envio continua manual, sem automação ou disparo em massa.
 
-> **Revisão 34 — 22/09/2026:** corrigida a transferência das mensagens para o WhatsApp após relato de emojis substituídos por caracteres de erro. Os botões copiam o texto Unicode integral e abrem a conversa sem incluir o corpo da mensagem na URL; a pessoa cola o texto no WhatsApp. Os modelos usam `*texto*`, sintaxe de negrito do WhatsApp. Essa mudança evita que a mensagem dependa da decodificação de emoji pelo link de compartilhamento.
+> **Revisão 34 — 22/09/2026:** após relato de emojis substituídos por caracteres de erro, os botões passaram temporariamente a abrir a conversa sem incluir o corpo da mensagem na URL; a pessoa deveria colar o texto copiado. Essa mudança evitava transportar emojis no link, mas deixava a conversa sem mensagem pré-preenchida.
+
+> **Revisão 35 — 22/09/2026:** corrigido o fluxo completo dos botões de cobrança e reativação: agora cada ação gera a mensagem com os dados atuais do cliente e abre `wa.me` com o texto completo em parâmetro UTF-8 URL-encoded. A cópia para a área de transferência permanece como alternativa; o texto deve ser conferido no WhatsApp antes do envio manual. Adicionados testes para validar telefone, decodificação exata de emojis/acentos/quebras de linha e ausência de link sem telefone.
 
 ## 1. Visão do produto
 
@@ -1325,9 +1327,9 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Mensagem de novidades: começa com `✨ Olá, {nome}! Temos novidades na **Finesse Joias**! 💎`, apresenta Prata 925 e oferece as opções numeradas: novidades, anéis, colares, brincos e pulseiras.
 - Mensagem de clientes sem compra recente: começa com `✨ Olá, {nome}! Sentimos sua falta por aqui! 🤍`, explica que chegaram novidades na Finesse Joias e oferece as mesmas cinco opções numeradas.
 - A mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido, e informa a chave PIX pública `finessesuporte.25@gmail.com`.
-- Emojis são montados por pontos de código Unicode e normalizados com NFC. Os botões de contato copiam a mensagem completa ao clipboard e abrem somente a conversa WhatsApp; o usuário cola a mensagem no campo de texto antes de enviar. A URL não transporta emojis ou corpo de mensagem.
+- Emojis são montados por pontos de código Unicode e normalizados com NFC. Os botões de contato passam a mensagem completa na URL `wa.me` por parâmetro `text`, codificado em UTF-8 pelo navegador, e também copiam o texto integral ao clipboard como alternativa. A mensagem deve aparecer pré-preenchida no WhatsApp; a master revisa e envia manualmente. Caso o cliente/aplicativo não preserve o texto pré-preenchido, use **Copiar mensagem** e cole no WhatsApp.
 - A formatação em negrito usa um asterisco no início e no fim (`*texto*`), conforme a sintaxe do WhatsApp. Não usar Markdown com asteriscos duplos (`**texto**`) nos modelos.
-- Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
+- Os botões de cobrança e de reativação abrem uma conversa com a mensagem correspondente pré-preenchida em `wa.me` e tentam copiar o mesmo conteúdo ao clipboard. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
 - Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
 - O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
 - A implementação está em `src/lib/communicationMessages.js`, `src/app/ReceivablesPage.jsx` e `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a chave PIX é um dado público de recebimento usado pelo frontend, e a funcionalidade continua protegida por RLS e autenticação master.

@@ -112,9 +112,9 @@ export function ReceivablesPage({ orderId = null, onClearOrder }) {
     const { phone, text } = messageFor(row)
     const number = phone.replace(/\D/g, '')
     if (!number) { setFeedback({ type: 'error', message: 'Este cliente não tem telefone cadastrado.' }); return }
-    window.open(whatsappUrl(number), '_blank', 'noopener,noreferrer')
+    window.open(whatsappUrl(number, text), '_blank', 'noopener,noreferrer')
     navigator.clipboard.writeText(normalizeWhatsAppText(text)).then(() => {
-      setFeedback({ type: 'success', message: 'Mensagem copiada com os emojis. Cole o texto no WhatsApp para enviar.' })
+      setFeedback({ type: 'success', message: 'Mensagem copiada e preparada no WhatsApp. Confira o texto antes de enviar.' })
     }).catch(() => {
       setFeedback({ type: 'error', message: 'A conversa foi aberta, mas não foi possível copiar a mensagem. Use “Copiar mensagem” e cole no WhatsApp.' })
     })

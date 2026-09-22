@@ -14,10 +14,12 @@ export function normalizeWhatsAppText(text) {
   return String(text).normalize('NFC')
 }
 
-export function whatsappUrl(phone) {
+export function whatsappUrl(phone, text) {
   const digits = String(phone || '').replace(/\D/g, '')
   const number = digits.startsWith('55') ? digits : `55${digits}`
-  return number.length > 2 ? `https://wa.me/${number}` : ''
+  if (number.length <= 2) return ''
+  const query = new URLSearchParams({ text: normalizeWhatsAppText(text ?? '') })
+  return `https://wa.me/${number}?${query.toString()}`
 }
 
 export function receivableMessage({ name = 'cliente', amount, dueDate }) {
