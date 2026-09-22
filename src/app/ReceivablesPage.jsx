@@ -5,6 +5,7 @@ import { money } from '../lib/format'
 
 const paymentMethods = { cash: 'Dinheiro', pix: 'Pix', debit_card: 'Débito', credit_card: 'Crédito', transfer: 'Transferência', other: 'Outro' }
 const statusLabels = { pending: 'Pendente', partially_paid: 'Parcial', overdue: 'Em atraso', paid: 'Paga', canceled: 'Cancelada' }
+const pixKey = '{{chave_pix}}'
 
 function today() { return new Date().toISOString().slice(0, 10) }
 
@@ -18,7 +19,15 @@ function messageFor(row) {
   const phone = row.customer_phone || ''
   const name = row.customer_name || 'cliente'
   const date = new Intl.DateTimeFormat('pt-BR').format(new Date(`${row.due_date}T12:00:00`))
-  return { phone, text: `Olá, ${name}! Tudo bem? Passando para lembrar que a parcela ${row.installment_number}/${row.installment_count}, no valor de ${money(Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)))}, vence em ${date}. Se já realizou o pagamento, por favor desconsidere esta mensagem. Obrigada!` }
+  const amount = money(Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)))
+  return { phone, text: `✨ Olá, ${name}! Tudo bem?
+Passando com carinho para lembrar que o pagamento referente à sua compra na **Finesse Joias** está pendente no valor de **${amount}**, com vencimento em **${date}**.
+💳 Você pode realizar o pagamento pela chave PIX abaixo:
+**${pixKey}**
+Caso o pagamento já tenha sido efetuado, por favor, desconsidere esta mensagem e, se possível, envie o comprovante. 💎
+Se precisar de alguma informação ou desejar combinar uma nova data, estamos à disposição para ajudar. 🤍
+Atenciosamente,
+**Finesse Joias | Prata 925** ✨` }
 }
 
 export function ReceivablesPage({ orderId = null, onClearOrder }) {

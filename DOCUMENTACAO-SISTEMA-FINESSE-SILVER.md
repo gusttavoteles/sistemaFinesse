@@ -52,6 +52,8 @@
 
 > **Revisão 31 — 22/09/2026:** refinada a tela de login para integrar a logo preta ao painel visual. A direção escolhida é preto profundo com tipografia branca, detalhes dourados e fundo da logo sem borda visível; o marrom fica apenas como nuance sutil do gradiente, não como cor dominante. A arte original permanece preservada e o ajuste é feito por composição CSS. Regras detalhadas na seção 20.11.
 
+> **Revisão 32 — 22/09/2026:** atualizados os modelos textuais de cobrança, novidades e reativação. A cobrança passou a usar o nome Finesse Joias, valor restante da parcela, vencimento, instrução de PIX e assinatura; como ainda não existe uma chave PIX configurada no banco, `{{chave_pix}}` permanece como marcador explícito. As duas mensagens de relacionamento passaram a oferecer opções numeradas de produtos. O envio continua manual, por cópia ou abertura do WhatsApp, sem automação ou disparo em massa. Regras detalhadas nas seções 3.5 e 20.6.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -259,14 +261,17 @@ Cada parcela deve ter as ações:
 - registrar pagamento;
 - alterar vencimento somente com permissão e motivo.
 
-Mensagem padrão sugerida:
+Mensagem padrão vigente:
 
 ```text
-Olá, {nome_cliente}! Tudo bem?
-
-Passando para lembrar que a parcela {numero_parcela}/{total_parcelas}, no valor de {valor_parcela}, vence em {data_vencimento}.
-
-Se já realizou o pagamento, por favor desconsidere esta mensagem. Obrigada!
+✨ Olá, {{nome}}! Tudo bem?
+Passando com carinho para lembrar que o pagamento referente à sua compra na **Finesse Joias** está pendente no valor de **R$ {{valor}}**, com vencimento em **{{data_vencimento}}**.
+💳 Você pode realizar o pagamento pela chave PIX abaixo:
+**{{chave_pix}}**
+Caso o pagamento já tenha sido efetuado, por favor, desconsidere esta mensagem e, se possível, envie o comprovante. 💎
+Se precisar de alguma informação ou desejar combinar uma nova data, estamos à disposição para ajudar. 🤍
+Atenciosamente,
+**Finesse Joias | Prata 925** ✨
 ```
 
 No MVP, a mensagem será gerada e copiada pelo sistema para ser enviada manualmente no WhatsApp. O envio automático via API será tratado como integração futura e poderá gerar cobrança da Meta.
@@ -1313,12 +1318,13 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - A aba **Reativação** lista todos os registros da tabela `clientes`, sem filtrar pelo campo `active`. Assim, clientes ativos e inativos continuam disponíveis para consulta e contato, conforme solicitado.
 - A lista permite buscar por nome, telefone ou e-mail. A edição do cadastro continua sendo feita na aba **Clientes**, mantendo uma única fonte de dados para nome e telefone.
 - Cada cliente possui duas ações: **Avisar novas peças** e **Convidar para comprar novamente**. As mensagens usam o nome atual do cadastro no momento do clique.
-- Mensagem de novas peças: `Olá, {nome}! Tudo bem? Chegaram peças novas em prata 925 na Finesse Silver e lembrei de você. Se quiser, posso te enviar as novidades. Será um prazer te atender! ✨`
-- Mensagem de recompra: `Olá, {nome}! Tudo bem? Sentimos sua falta na Finesse Silver. Temos novidades em prata 925 e será um prazer te ajudar a escolher algo novo para você. Quer ver algumas opções? ✨`
+- Mensagem de novidades: começa com `✨ Olá, {nome}! Temos novidades na **Finesse Joias**! 💎`, apresenta Prata 925 e oferece as opções numeradas: novidades, anéis, colares, brincos e pulseiras.
+- Mensagem de clientes sem compra recente: começa com `✨ Olá, {nome}! Sentimos sua falta por aqui! 🤍`, explica que chegaram novidades na Finesse Joias e oferece as mesmas cinco opções numeradas.
+- A mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido. O marcador `{{chave_pix}}` permanece até a loja informar uma chave PIX cadastrável; o sistema não inventa nem substitui esse dado por uma chave fixa.
 - Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
 - Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
 - O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
-- A implementação está em `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a funcionalidade consulta os clientes já existentes com RLS e autenticação master.
+- A implementação está em `src/app/ReceivablesPage.jsx` e `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: os textos usam os dados já disponíveis, e a funcionalidade continua protegida por RLS e autenticação master.
 
 ### 20.7 Lucro estimativo de produtos
 
