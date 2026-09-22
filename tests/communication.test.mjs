@@ -17,9 +17,11 @@ test('communication templates keep the PIX key and requested emojis', () => {
   assert.equal(pixKey, 'finessesuporte.25@gmail.com')
 })
 
-test('WhatsApp URL preserves normalized Unicode text', () => {
+test('WhatsApp opens the conversation without query text so the Unicode clipboard message is pasted directly', () => {
   const text = winbackMessages.newPieces('Joana')
-  const url = whatsappUrl('11999999999', text)
-  assert.ok(url.startsWith('https://wa.me/5511999999999?text='))
-  assert.equal(decodeURIComponent(url.split('text=')[1]), text)
+  const url = whatsappUrl('11999999999')
+  assert.equal(url, 'https://wa.me/5511999999999')
+  assert.match(text, /✨/)
+  assert.match(text, /💎/)
+  assert.doesNotMatch(text, /\*\*/)
 })

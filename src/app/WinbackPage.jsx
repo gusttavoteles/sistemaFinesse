@@ -33,10 +33,10 @@ export function WinbackPage() {
   async function contact(customer, type) {
     const text = winbackMessages[type](customer.name)
     const number = phoneNumber(customer.phone)
-    if (number) window.open(whatsappUrl(number, text), '_blank', 'noopener,noreferrer')
+    if (number) window.open(whatsappUrl(number), '_blank', 'noopener,noreferrer')
     try {
       await navigator.clipboard.writeText(normalizeWhatsAppText(text))
-      setFeedback({ type: 'success', message: number ? `Mensagem preparada para ${customer.name} e copiada. Revise e envie pelo WhatsApp.` : `Mensagem de ${customer.name} copiada. Cadastre um telefone para abrir o WhatsApp.` })
+      setFeedback({ type: 'success', message: number ? `Mensagem de ${customer.name} copiada com os emojis. Cole no WhatsApp para enviar.` : `Mensagem de ${customer.name} copiada. Cadastre um telefone para abrir o WhatsApp.` })
     } catch {
       setFeedback({ type: 'error', message: 'Não foi possível copiar a mensagem neste navegador.' })
     }

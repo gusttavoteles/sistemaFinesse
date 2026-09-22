@@ -54,7 +54,9 @@
 
 > **Revisão 32 — 22/09/2026:** atualizados os modelos textuais de cobrança, novidades e reativação. A cobrança passou a usar o nome Finesse Joias, valor restante da parcela, vencimento, instrução de PIX e assinatura; como ainda não existe uma chave PIX configurada no banco, `{{chave_pix}}` permanece como marcador explícito. As duas mensagens de relacionamento passaram a oferecer opções numeradas de produtos. O envio continua manual, por cópia ou abertura do WhatsApp, sem automação ou disparo em massa. Regras detalhadas nas seções 3.5 e 20.6.
 
-> **Revisão 33 — 22/09/2026:** cadastrada a chave PIX pública `finessesuporte.25@gmail.com` no modelo de cobrança. As mensagens passaram a usar caracteres Unicode explícitos, normalização NFC e codificação UTF-8 na cópia/URL do WhatsApp para preservar emojis, corações, gemas e emojis de opções numeradas. O envio continua manual, sem automação ou disparo em massa.
+> **Revisão 33 — 22/09/2026:** cadastrada a chave PIX pública `finessesuporte.25@gmail.com` no modelo de cobrança. As mensagens passaram a usar caracteres Unicode explícitos e normalização NFC na cópia para preservar emojis, corações, gemas e emojis de opções numeradas. O envio continua manual, sem automação ou disparo em massa.
+
+> **Revisão 34 — 22/09/2026:** corrigida a transferência das mensagens para o WhatsApp após relato de emojis substituídos por caracteres de erro. Os botões copiam o texto Unicode integral e abrem a conversa sem incluir o corpo da mensagem na URL; a pessoa cola o texto no WhatsApp. Os modelos usam `*texto*`, sintaxe de negrito do WhatsApp. Essa mudança evita que a mensagem dependa da decodificação de emoji pelo link de compartilhamento.
 
 ## 1. Visão do produto
 
@@ -1323,7 +1325,8 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Mensagem de novidades: começa com `✨ Olá, {nome}! Temos novidades na **Finesse Joias**! 💎`, apresenta Prata 925 e oferece as opções numeradas: novidades, anéis, colares, brincos e pulseiras.
 - Mensagem de clientes sem compra recente: começa com `✨ Olá, {nome}! Sentimos sua falta por aqui! 🤍`, explica que chegaram novidades na Finesse Joias e oferece as mesmas cinco opções numeradas.
 - A mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido, e informa a chave PIX pública `finessesuporte.25@gmail.com`.
-- Emojis são montados por pontos de código Unicode, normalizados com NFC e codificados com `encodeURIComponent` em UTF-8 antes da abertura do WhatsApp. A mesma mensagem normalizada é enviada ao clipboard, mantendo o conteúdo consistente entre copiar e abrir.
+- Emojis são montados por pontos de código Unicode e normalizados com NFC. Os botões de contato copiam a mensagem completa ao clipboard e abrem somente a conversa WhatsApp; o usuário cola a mensagem no campo de texto antes de enviar. A URL não transporta emojis ou corpo de mensagem.
+- A formatação em negrito usa um asterisco no início e no fim (`*texto*`), conforme a sintaxe do WhatsApp. Não usar Markdown com asteriscos duplos (`**texto**`) nos modelos.
 - Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
 - Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
 - O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
