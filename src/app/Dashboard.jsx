@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import logo from '../assets/finesse-logo.png'
 import { date, initials, money } from '../lib/format'
 import { CustomersPage } from './CustomersPage'
 import { ReceivablesPage } from './ReceivablesPage'
@@ -153,7 +154,7 @@ export function Dashboard({ session }) {
     {menuOpen && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />}
     <aside className={menuOpen ? 'sidebar is-open' : 'sidebar'}>
       <div className="sidebar-top">
-        <div className="sidebar-brand-row"><div className="logo-lockup"><span className="logo-symbol">F</span><span>finesse</span></div><button className="menu-close" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}>×</button></div>
+        <div className="sidebar-brand-row"><div className="logo-lockup brand-logo-lockup"><img className="brand-logo-image" src={logo} alt="Finesse — joias em prata 925" /></div><button className="menu-close" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}>×</button></div>
         <div className="brand-kicker">silver · gestão</div>
       </div>
       <nav className="main-nav" aria-label="Navegação principal">
@@ -168,7 +169,7 @@ export function Dashboard({ session }) {
     <main className="main-content">
       <header className="topbar">
         <button className="menu-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><span /><span /><span /></button>
-        <div className="mobile-brand"><span className="logo-symbol">F</span> finesse</div>
+        <div className="mobile-brand"><img className="brand-logo-image" src={logo} alt="Finesse — joias em prata 925" /></div>
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { authRedirectUrl, supabase } from '../lib/supabase'
+import logo from '../assets/finesse-logo.png'
 
 function recoveryErrorMessage(error) {
   const message = String(error?.message || '').toLowerCase()
@@ -51,7 +52,7 @@ export function AuthScreen({ configurationError = '', initialError = '' }) {
   return (
     <main className="auth-layout">
       <section className="auth-brand-panel">
-        <div><div className="logo-lockup"><span className="logo-symbol">F</span><span>finesse</span></div><p className="brand-kicker">silver · controle interno</p></div>
+        <div><div className="logo-lockup brand-logo-lockup"><img className="brand-logo-image" src={logo} alt="Finesse — joias em prata 925" /></div><p className="brand-kicker">silver · controle interno</p></div>
         <div className="brand-message"><p className="eyebrow">Prata 925, organizada</p><h1>Um olhar claro para cada venda.</h1><p>Controle pedidos, estoque, recebimentos e cobranças da sua loja online em um só lugar.</p></div>
         <span className="brand-footer">Acesso restrito aos dois usuários master</span>
       </section>

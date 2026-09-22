@@ -50,6 +50,8 @@
 
 > **Revisão 30 — 22/09/2026:** adotada a logo oficial enviada pelo proprietário. A arte é versionada em `src/assets/finesse-logo.png`, exibida sobre fundo preto e aplicada à tela de login, ao menu lateral, ao cabeçalho móvel, ao primeiro acesso e ao carregamento inicial. O CSS somente enquadra a imagem removendo margens pretas vazias; não há redesenho, alteração do texto ou geração automática da marca. Regras detalhadas na seção 20.10.
 
+> **Revisão 28 — 22/09/2026:** adotada a logo oficial enviada pelo proprietário. A arte é versionada em `src/assets/finesse-logo.png`, exibida sobre fundo preto e aplicada à tela de login, ao menu lateral, ao cabeçalho móvel, ao primeiro acesso e ao carregamento inicial. O CSS somente enquadra a imagem removendo margens pretas vazias; não há redesenho, alteração do texto ou geração automática da marca. Regras detalhadas na seção 20.9.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1354,3 +1356,12 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - A programação semanal de conteúdo usa o mesmo arquivo WebP privado e converte cada download para o formato escolhido na tela. A seleção aleatória, a regra de cinco fotos por dia e o bloqueio de repetição semanal não são alterados.
 - Imagens animadas não têm sua animação garantida: quando o navegador as decodifica como um quadro, a versão normalizada será uma imagem estática.
 - Implementação: `src/lib/imageProcessing.js`, `src/app/ProductsPage.jsx`, `src/app/ContentPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração de tabela. A regra deve ser atualizada neste documento antes de qualquer mudança futura nos formatos, limites, qualidade ou retenção do original.
+
+### 20.9 Identidade visual e logo oficial
+
+- A logo oficial da Finesse é o arquivo fornecido pelo proprietário e versionado em `src/assets/finesse-logo.png`.
+- A arte deve ser exibida com fundo preto (`#000`), preservando a aparência prateada e o texto original da imagem.
+- O sistema aplica a logo nos pontos de marca principais: tela de login, tela de definição de senha do convite, menu lateral desktop, menu lateral responsivo, cabeçalho móvel e tela de carregamento.
+- O enquadramento é feito apenas por CSS, usando `object-fit: cover` e posicionamento vertical controlado para ocultar margens pretas vazias da imagem quadrada. O arquivo original não é editado nem redesenhado.
+- A logo não deve ser substituída por texto, símbolo `F`, ícone genérico ou outra versão sem registrar nova revisão neste documento.
+- Não há alteração de banco, autenticação ou regra de negócio. A implementação está em `src/app/App.jsx`, `src/app/AuthScreen.jsx`, `src/app/Dashboard.jsx`, `src/app/PasswordSetupScreen.jsx`, `src/styles.css` e `src/assets/finesse-logo.png`.

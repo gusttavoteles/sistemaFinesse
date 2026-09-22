@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured, configurationMessage } from '../lib/sup
 import { AuthScreen } from './AuthScreen'
 import { Dashboard } from './Dashboard'
 import { PasswordSetupScreen } from './PasswordSetupScreen'
+import logo from '../assets/finesse-logo.png'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -65,7 +66,7 @@ export default function App() {
 
   const configIssue = useMemo(() => !isSupabaseConfigured, [])
 
-  if (loading) return <div className="loading-screen"><span className="brand-mark">F</span><p>Carregando Finesse Silver…</p></div>
+  if (loading) return <div className="loading-screen"><img className="loading-logo" src={logo} alt="Finesse — joias em prata 925" /><p>Carregando Finesse Silver…</p></div>
   if (configIssue) return <AuthScreen configurationError={configurationMessage()} />
   if (setupSession) return <PasswordSetupScreen />
   if (!session) return <AuthScreen initialError={authError} />
