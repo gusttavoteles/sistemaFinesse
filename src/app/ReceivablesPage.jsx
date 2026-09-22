@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRequestKey } from '../lib/useRequestKey'
 import { money } from '../lib/format'
+import { normalizeWhatsAppText, receivableMessage, whatsappUrl } from '../lib/communicationMessages'
 
 const paymentMethods = { cash: 'Dinheiro', pix: 'Pix', debit_card: 'Débito', credit_card: 'Crédito', transfer: 'Transferência', other: 'Outro' }
 const statusLabels = { pending: 'Pendente', partially_paid: 'Parcial', overdue: 'Em atraso', paid: 'Paga', canceled: 'Cancelada' }
-const pixKey = '{{chave_pix}}'
 
 function today() { return new Date().toISOString().slice(0, 10) }
 
@@ -20,14 +20,7 @@ function messageFor(row) {
   const name = row.customer_name || 'cliente'
   const date = new Intl.DateTimeFormat('pt-BR').format(new Date(`${row.due_date}T12:00:00`))
   const amount = money(Math.max(0, Number(row.amount) - Number(row.paid_amount || 0)))
-  return { phone, text: `✨ Olá, ${name}! Tudo bem?
-Passando com carinho para lembrar que o pagamento referente à sua compra na **Finesse Joias** está pendente no valor de **${amount}**, com vencimento em **${date}**.
-💳 Você pode realizar o pagamento pela chave PIX abaixo:
-**${pixKey}**
-Caso o pagamento já tenha sido efetuado, por favor, desconsidere esta mensagem e, se possível, envie o comprovante. 💎
-Se precisar de alguma informação ou desejar combinar uma nova data, estamos à disposição para ajudar. 🤍
-Atenciosamente,
-**Finesse Joias | Prata 925** ✨` }
+  return { phone, text: receivableMessage({ name, amount, dueDate: date }) }
 }
 
 export function ReceivablesPage({ orderId = null, onClearOrder }) {
@@ -102,7 +95,7 @@ export function ReceivablesPage({ orderId = null, onClearOrder }) {
 
   async function copyMessage(row) {
     try {
-      await navigator.clipboard.writeText(messageFor(row).text)
+      await navigator.clipboard.writeText(normalizeWhatsAppText(messageFor(row).text))
       setFeedback({ type: 'success', message: 'Mensagem de cobrança copiada.' })
     } catch {
       setFeedback({ type: 'error', message: 'Não foi possível copiar a mensagem neste navegador.' })
@@ -119,7 +112,7 @@ export function ReceivablesPage({ orderId = null, onClearOrder }) {
     const { phone, text } = messageFor(row)
     const number = phone.replace(/\D/g, '')
     if (!number) { setFeedback({ type: 'error', message: 'Este cliente não tem telefone cadastrado.' }); return }
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    window.open(whatsappUrl(number, text), '_blank', 'noopener,noreferrer')
   }
 
   return <div className="page-content">

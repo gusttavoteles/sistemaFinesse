@@ -1,30 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-
-const messages = {
-  newPieces: (name) => `✨ Olá, ${name}! Temos novidades na **Finesse Joias**! 💎
-Acabaram de chegar novas peças em **Prata 925**, escolhidas especialmente para deixar seus looks ainda mais elegantes e sofisticados. 🤍
-Quer receber as novidades em primeira mão?
-Responda com uma das opções:
-**1️⃣ Quero ver as novidades**
-**2️⃣ Quero ver anéis** 💍
-**3️⃣ Quero ver colares** ✨
-**4️⃣ Quero ver brincos** 🤍
-**5️⃣ Quero ver pulseiras** 💎
-É só responder com o número da opção desejada! Será um prazer ajudar você a encontrar sua nova joia favorita. ✨
-**Finesse Joias | Prata 925**`,
-  buyAgain: (name) => `✨ Olá, ${name}! Sentimos sua falta por aqui! 🤍
-Já faz algum tempo desde a sua última compra na **Finesse Joias**, e queremos convidar você para conhecer as novidades que acabaram de chegar. 💎
-São novas peças em **Prata 925**, selecionadas para combinar com diferentes estilos e tornar seus momentos ainda mais especiais. ✨
-O que você gostaria de ver?
-**1️⃣ Novidades**
-**2️⃣ Anéis** 💍
-**3️⃣ Colares** ✨
-**4️⃣ Brincos** 🤍
-**5️⃣ Pulseiras** 💎
-Responda com o número da opção desejada e enviaremos uma seleção especial para você!
-**Finesse Joias | Prata 925** ✨`,
-}
+import { normalizeWhatsAppText, whatsappUrl, winbackMessages } from '../lib/communicationMessages'
 
 function phoneNumber(phone) {
   const digits = (phone || '').replace(/\D/g, '')
@@ -55,11 +31,11 @@ export function WinbackPage() {
   }, [customers, search])
 
   async function contact(customer, type) {
-    const text = messages[type](customer.name)
+    const text = winbackMessages[type](customer.name)
     const number = phoneNumber(customer.phone)
-    if (number) window.open(`https://wa.me/${number}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    if (number) window.open(whatsappUrl(number, text), '_blank', 'noopener,noreferrer')
     try {
-      await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(normalizeWhatsAppText(text))
       setFeedback({ type: 'success', message: number ? `Mensagem preparada para ${customer.name} e copiada. Revise e envie pelo WhatsApp.` : `Mensagem de ${customer.name} copiada. Cadastre um telefone para abrir o WhatsApp.` })
     } catch {
       setFeedback({ type: 'error', message: 'Não foi possível copiar a mensagem neste navegador.' })
@@ -71,6 +47,6 @@ export function WinbackPage() {
     {feedback.message && <div className={`alert ${feedback.type === 'error' ? 'error' : 'success'} inline-alert`}><strong>{feedback.type === 'error' ? 'Atenção' : 'Mensagem preparada'}</strong><span>{feedback.message}</span></div>}
     <section className="panel winback-intro"><div><span className="eyebrow">Contato manual</span><h2>Duas formas de chamar sua cliente</h2><p>Os botões copiam a mensagem e, quando houver telefone, abrem uma conversa preenchida no WhatsApp. O envio continua dependendo da sua confirmação.</p></div><div className="winback-note"><strong>{customers.length}</strong><span>clientes cadastrados na base</span></div></section>
     <section className="panel list-panel"><div className="panel-heading"><div><span className="eyebrow">Lista completa</span><h2>{filteredCustomers.length} {filteredCustomers.length === 1 ? 'cliente' : 'clientes'} para contato</h2></div><label className="search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, telefone ou e-mail" /></label></div>{loading ? <div className="loading-row">Carregando clientes…</div> : filteredCustomers.length === 0 ? <div className="empty-table"><span className="empty-icon">♧</span><strong>{search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}</strong><p>{search ? 'Tente outro termo de busca.' : 'Cadastre clientes para iniciar a reativação.'}</p></div> : <div className="data-table-wrap"><table className="data-table winback-table"><thead><tr><th>Cliente</th><th>Telefone</th><th>WhatsApp</th><th>Status</th><th>Ações de contato</th></tr></thead><tbody>{filteredCustomers.map((customer) => <tr key={customer.id}><td><strong>{customer.name}</strong><small>{customer.email || 'Sem e-mail informado'}</small></td><td>{customer.phone || 'Sem telefone'}</td><td><span className={customer.whatsapp_opt_in ? 'status-pill success-pill' : 'status-pill muted-pill'}>{customer.whatsapp_opt_in ? 'Autorizado' : 'Não informado'}</span></td><td><span className={customer.active ? 'status-pill success-pill' : 'status-pill muted-pill'}>{customer.active ? 'Ativo' : 'Inativo'}</span></td><td><div className="winback-actions"><button className="secondary-button compact-button" onClick={() => contact(customer, 'newPieces')}>Avisar novas peças</button><button className="primary-button compact-button" onClick={() => contact(customer, 'buyAgain')}>Convidar para comprar novamente</button></div></td></tr>)}</tbody></table></div>}</section>
-    <section className="winback-message-grid"><article className="panel winback-message-card"><span className="eyebrow">Mensagem 1</span><h2>Chegaram novas peças</h2><p>{messages.newPieces('[nome]')}</p><small>Usada para apresentar novidades do estoque.</small></article><article className="panel winback-message-card"><span className="eyebrow">Mensagem 2</span><h2>Convite para comprar novamente</h2><p>{messages.buyAgain('[nome]')}</p><small>Usada para retomar o relacionamento com a cliente.</small></article></section>
+    <section className="winback-message-grid"><article className="panel winback-message-card"><span className="eyebrow">Mensagem 1</span><h2>Chegaram novas peças</h2><p>{winbackMessages.newPieces('[nome]')}</p><small>Usada para apresentar novidades do estoque.</small></article><article className="panel winback-message-card"><span className="eyebrow">Mensagem 2</span><h2>Convite para comprar novamente</h2><p>{winbackMessages.buyAgain('[nome]')}</p><small>Usada para retomar o relacionamento com a cliente.</small></article></section>
   </div>
 }

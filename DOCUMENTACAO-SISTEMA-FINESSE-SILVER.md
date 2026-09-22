@@ -54,6 +54,8 @@
 
 > **Revisão 32 — 22/09/2026:** atualizados os modelos textuais de cobrança, novidades e reativação. A cobrança passou a usar o nome Finesse Joias, valor restante da parcela, vencimento, instrução de PIX e assinatura; como ainda não existe uma chave PIX configurada no banco, `{{chave_pix}}` permanece como marcador explícito. As duas mensagens de relacionamento passaram a oferecer opções numeradas de produtos. O envio continua manual, por cópia ou abertura do WhatsApp, sem automação ou disparo em massa. Regras detalhadas nas seções 3.5 e 20.6.
 
+> **Revisão 33 — 22/09/2026:** cadastrada a chave PIX pública `finessesuporte.25@gmail.com` no modelo de cobrança. As mensagens passaram a usar caracteres Unicode explícitos, normalização NFC e codificação UTF-8 na cópia/URL do WhatsApp para preservar emojis, corações, gemas e emojis de opções numeradas. O envio continua manual, sem automação ou disparo em massa.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -267,7 +269,7 @@ Mensagem padrão vigente:
 ✨ Olá, {{nome}}! Tudo bem?
 Passando com carinho para lembrar que o pagamento referente à sua compra na **Finesse Joias** está pendente no valor de **R$ {{valor}}**, com vencimento em **{{data_vencimento}}**.
 💳 Você pode realizar o pagamento pela chave PIX abaixo:
-**{{chave_pix}}**
+**finessesuporte.25@gmail.com**
 Caso o pagamento já tenha sido efetuado, por favor, desconsidere esta mensagem e, se possível, envie o comprovante. 💎
 Se precisar de alguma informação ou desejar combinar uma nova data, estamos à disposição para ajudar. 🤍
 Atenciosamente,
@@ -1320,11 +1322,12 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Cada cliente possui duas ações: **Avisar novas peças** e **Convidar para comprar novamente**. As mensagens usam o nome atual do cadastro no momento do clique.
 - Mensagem de novidades: começa com `✨ Olá, {nome}! Temos novidades na **Finesse Joias**! 💎`, apresenta Prata 925 e oferece as opções numeradas: novidades, anéis, colares, brincos e pulseiras.
 - Mensagem de clientes sem compra recente: começa com `✨ Olá, {nome}! Sentimos sua falta por aqui! 🤍`, explica que chegaram novidades na Finesse Joias e oferece as mesmas cinco opções numeradas.
-- A mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido. O marcador `{{chave_pix}}` permanece até a loja informar uma chave PIX cadastrável; o sistema não inventa nem substitui esse dado por uma chave fixa.
+- A mensagem de cobrança usa o saldo restante da parcela, não o valor já recebido, e informa a chave PIX pública `finessesuporte.25@gmail.com`.
+- Emojis são montados por pontos de código Unicode, normalizados com NFC e codificados com `encodeURIComponent` em UTF-8 antes da abertura do WhatsApp. A mesma mensagem normalizada é enviada ao clipboard, mantendo o conteúdo consistente entre copiar e abrir.
 - Cada ação copia a mensagem para a área de transferência e, se existir telefone, abre uma conversa preenchida em `wa.me`. O sistema não envia automaticamente; a master revisa e confirma o envio no WhatsApp.
 - Sem telefone, a mensagem ainda pode ser copiada para outro canal. A tela informa que o cadastro precisa de telefone para abrir o WhatsApp.
 - O indicador de autorização de WhatsApp continua visível para orientar a operação. A aba não cria disparos em massa, não envia mensagens em segundo plano e não altera automaticamente o cadastro do cliente.
-- A implementação está em `src/app/ReceivablesPage.jsx` e `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: os textos usam os dados já disponíveis, e a funcionalidade continua protegida por RLS e autenticação master.
+- A implementação está em `src/lib/communicationMessages.js`, `src/app/ReceivablesPage.jsx` e `src/app/WinbackPage.jsx`, integrada à navegação de `src/app/Dashboard.jsx`. Não foi necessária migration: a chave PIX é um dado público de recebimento usado pelo frontend, e a funcionalidade continua protegida por RLS e autenticação master.
 
 ### 20.7 Lucro estimativo de produtos
 
