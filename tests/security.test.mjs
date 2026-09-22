@@ -36,6 +36,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/20260919000400_remo
 await db.exec(await readFile(new URL('../supabase/migrations/20260919000500_portuguese_table_names.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260921000600_linked_orders_and_dashboard.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260921000700_weekly_content_scheduler.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260921000800_sales_goals.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.master_access(slot,email,user_id) values(1,'master@example.test','${master}');`);
 const account = (await db.query('select id from public.contas_financeiras limit 1')).rows[0].id;
@@ -239,11 +240,11 @@ test('due date correction audits reason, changes only one installment and denies
 }));
 test('dashboard includes every paid transaction, excludes pending/canceled and refreshes canonical names',()=>tx(async()=>{
   await asUser(); const {o,c,installments}=await linkedOrder();
-  await db.query("select public.record_installment_payment($1,10,'pix',$2,gen_random_uuid())",[installments[0].id,account]);
+  await db.query("select public.record_installment_payment($1,10,'pix',$2,gen_random_uuid(),(((now() at time zone 'America/Sao_Paulo')::date + time '12:00') at time zone 'America/Sao_Paulo'))",[installments[0].id,account]);
   await db.exec('reset role');
   await db.query('update public.contas_financeiras set initial_balance=50 where id=$1',[account]);
-  await db.query("insert into public.transacoes_financeiras(financial_account_id,type,direction,status,amount,description) select $1,'income','in','paid',1,'Teste agregado' from generate_series(1,1100)",[account]);
-  await db.query("insert into public.transacoes_financeiras(financial_account_id,type,direction,status,amount,description) values($1,'income','in','pending',500,'Ainda não recebido'),($1,'expense','out','paid',20,'Saída teste')",[account]);
+  await db.query("insert into public.transacoes_financeiras(financial_account_id,type,direction,status,amount,description,transaction_date) select $1,'income','in','paid',1,'Teste agregado',(now() at time zone 'America/Sao_Paulo')::date from generate_series(1,1100)",[account]);
+  await db.query("insert into public.transacoes_financeiras(financial_account_id,type,direction,status,amount,description,transaction_date) values($1,'income','in','pending',500,'Ainda não recebido',(now() at time zone 'America/Sao_Paulo')::date),($1,'expense','out','paid',20,'Saída teste',(now() at time zone 'America/Sao_Paulo')::date)",[account]);
   await db.query("insert into public.pedidos(status) values('canceled')");
   await asUser(); await db.query("update public.clientes set name='Nome atual' where id=$1",[c]);
   const summary=(await db.query('select public.dashboard_summary() data')).rows[0].data;
@@ -254,11 +255,30 @@ test('dashboard includes every paid transaction, excludes pending/canceled and r
   const balance=(await db.query('select balance from public.saldos_contas_financeiras where id=$1',[account])).rows[0].balance;
   assert.equal(Number(balance),summary.balance);
 }));
+test('sales goal counts each fully paid order once and is idempotent',()=>tx(async()=>{
+  await asUser(); const {o,installments}=await linkedOrder();
+  for (const installment of installments) {
+    await db.query("select public.record_installment_payment($1,$2,'pix',$3,gen_random_uuid())",[installment.id,Number(installment.amount),account]);
+  }
+  const key=(await db.query('select gen_random_uuid() id')).rows[0].id;
+  const saved=(await db.query("select public.save_sales_goal('2020-01-01','2030-12-31',250,$1) data",[key])).rows[0].data;
+  assert.equal(saved.id !== null,true);
+  assert.equal((await db.query('select count(*) n from public.metas_vendas where active')).rows[0].n,1);
+  const summary=(await db.query('select public.sales_goal_summary() data')).rows[0].data;
+  assert.equal(summary.paid_orders,1); assert.equal(Number(summary.paid_amount),100); assert.equal(Number(summary.remaining_amount),150); assert.equal(Number(summary.progress_percent),40);
+  const replay=(await db.query("select public.save_sales_goal('2020-01-01','2030-12-31',250,$1) data",[key])).rows[0].data;
+  assert.equal(replay.id,saved.id); assert.equal((await db.query('select count(*) n from public.metas_vendas')).rows[0].n,1);
+  await db.query("select public.save_sales_goal('2031-01-01','2031-12-31',100,$1)",[await db.query('select gen_random_uuid() id').then(r=>r.rows[0].id)]);
+  const empty=(await db.query('select public.sales_goal_summary() data')).rows[0].data;
+  assert.equal(empty.paid_orders,0); assert.equal(Number(empty.paid_amount),0);
+}));
 test('new RPCs and private photo reads remain master-only',()=>tx(async()=>{
   await asUser(); await db.query("insert into storage.objects(bucket_id,name) values('product-images','test/photo.jpg')");
   assert.equal((await db.query('select count(*) n from storage.objects')).rows[0].n,1);
   await db.exec('reset role'); await asUser(other);
   await denied('select public.dashboard_summary()');
+  await denied('select public.sales_goal_summary()');
+  await denied("select public.save_sales_goal(current_date,current_date,100,gen_random_uuid())");
   await denied("select public.create_manual_order(null,'[]',0,0,null,null,gen_random_uuid())");
   await denied("select public.edit_order_details(gen_random_uuid(),null,'test')");
   await denied("select public.edit_installment_due_date(gen_random_uuid(),current_date,'test')");

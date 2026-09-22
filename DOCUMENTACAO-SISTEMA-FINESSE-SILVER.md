@@ -44,6 +44,7 @@
 > **Revisão 26 — 21/09/2026:** criada a aba **Reativação** para relacionamento pós-compra. Todos os clientes cadastrados, inclusive inativos, aparecem na lista. Cada cliente possui duas mensagens prontas: aviso de novas peças e convite para comprar novamente. Os botões preparam o contato manual, copiam a mensagem e abrem o WhatsApp quando há telefone cadastrado. Regras detalhadas na seção 20.6.
 
 > **Revisão 27 — 21/09/2026:** adicionada a visão de lucro estimativo na tela Produtos e estoque. O sistema calcula lucro unitário, margem média por produto e lucro estimado do estoque usando custo de aquisição e preço vigente. Esses indicadores são projeções de catálogo, não substituem o lucro realizado das vendas. Regras detalhadas na seção 20.7.
+> **Revisão 28 — 21/09/2026:** adicionada a meta de vendas na Visão geral. A master informa início, fim e valor do objetivo; o banco mantém uma única meta ativa e calcula automaticamente o progresso a partir dos pedidos quitados no período. O valor de um pedido entra uma única vez quando seu `payment_status` passa a `paid`, inclusive quando a quitação ocorre pela última parcela. Migration: `20260921000800_sales_goals.sql`.
 
 ## 1. Visão do produto
 
@@ -1324,3 +1325,14 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Os cálculos não descontam frete, taxas, impostos, descontos adicionais, custo financeiro, embalagem ou despesas operacionais. Portanto, o valor é uma estimativa bruta de catálogo, não lucro líquido nem lucro contábil.
 - Alterar custo, preço promocional ou preço de venda atualiza a projeção do catálogo. Isso não altera snapshots de preço/custo já gravados em itens de pedidos e não reescreve o histórico financeiro.
 - A implementação está em `src/app/ProductsPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração estrutural no banco.
+
+### 20.8 Meta de vendas na Visão geral
+
+- A seção **Meta do período** fica na aba principal e permite informar data inicial, data final e valor da meta.
+- Existe uma única meta ativa por vez. Salvar outra meta encerra a anterior e cria o novo período, preservando o histórico para auditoria.
+- O progresso é calculado no banco pela RPC `sales_goal_summary()`. Entram somente pedidos com `pedidos.payment_status = 'paid'`, `paid_at` preenchido e data local `America/Sao_Paulo` dentro do período da meta.
+- Cada pedido quitado é contado uma única vez pelo valor total da venda. Pagamentos parciais e parcelas individuais não duplicam o progresso; a venda entra quando a última parcela quita o pedido.
+- O card mostra percentual, total recebido em pedidos pagos, quantidade de pedidos e saldo restante. Ao voltar à Visão geral, atualizar ou recuperar o foco da janela, o resumo é consultado novamente.
+- A gravação usa a RPC protegida `save_sales_goal(date,date,numeric,uuid)`, valida o período e o valor, exige sessão master válida e é idempotente pelo `p_request_id`.
+- A tabela `metas_vendas` possui RLS, acesso de leitura apenas para equipe autorizada e alterações somente pela RPC. Cada criação/alteração é registrada na auditoria.
+- Implementação: `src/app/Dashboard.jsx`, `src/styles.css` e `supabase/migrations/20260921000800_sales_goals.sql`.

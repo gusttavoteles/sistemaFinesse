@@ -41,6 +41,11 @@ function monthLabel(date) {
   return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date)
 }
 
+function localDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 export function Dashboard({ session }) {
   const [active, setActive] = useState('dashboard')
   const [orderFilter, setOrderFilter] = useState(null)
@@ -52,6 +57,10 @@ export function Dashboard({ session }) {
   const [profileName, setProfileName] = useState('Master')
   const [projectionMonth, setProjectionMonth] = useState(monthKey(new Date()))
   const [projectionRows, setProjectionRows] = useState([])
+  const [goalSummary, setGoalSummary] = useState(null)
+  const [goalForm, setGoalForm] = useState({ start_date: localDateKey(), end_date: localDateKey(new Date(Date.now() + 30 * 86400000)), target_amount: '' })
+  const [goalSaving, setGoalSaving] = useState(false)
+  const [goalError, setGoalError] = useState('')
 
   useEffect(() => {
     if (active !== 'dashboard') return undefined
@@ -60,20 +69,24 @@ export function Dashboard({ session }) {
       const currentVersion = ++version
       setLoading(true); setError('')
       try {
-        const [summary, profile, projection] = await Promise.all([
+        const [summary, profile, projection, goal] = await Promise.all([
           supabase.rpc('dashboard_summary'),
           supabase.from('perfis').select('full_name').eq('id', session.user.id).maybeSingle(),
           supabase.from('resumo_parcelas_recebiveis').select('due_date,amount,paid_amount,effective_status').in('effective_status', ['pending', 'partially_paid', 'overdue']),
+          supabase.rpc('sales_goal_summary'),
         ])
         if (!mounted || currentVersion !== version) return
-        if (summary.error || profile.error || projection.error || !summary.data) throw summary.error || profile.error || projection.error || new Error('Dados indisponíveis')
+        if (summary.error || profile.error || projection.error || goal.error || !summary.data || !goal.data) throw summary.error || profile.error || projection.error || goal.error || new Error('Dados indisponíveis')
         setMetrics(summary.data)
         setProjectionRows(projection.data ?? [])
+        setGoalSummary(goal.data)
+        if (goal.data.goal) setGoalForm({ start_date: goal.data.goal.start_date, end_date: goal.data.goal.end_date, target_amount: String(goal.data.goal.target_amount) })
         if (profile.data?.full_name) setProfileName(profile.data.full_name)
       } catch {
         if (mounted && currentVersion === version) {
           setMetrics(emptyMetrics())
           setProjectionRows([])
+          setGoalSummary(null)
           setError('Não foi possível carregar a visão geral. Verifique a conexão e sua sessão e clique em Atualizar.')
         }
       } finally { if (mounted && currentVersion === version) setLoading(false) }
@@ -103,6 +116,23 @@ export function Dashboard({ session }) {
 
   async function logout() {
     await supabase.auth.signOut()
+  }
+
+  async function saveGoal(event) {
+    event.preventDefault()
+    setGoalSaving(true); setGoalError('')
+    try {
+      const { error: saveError } = await supabase.rpc('save_sales_goal', {
+        p_start_date: goalForm.start_date,
+        p_end_date: goalForm.end_date,
+        p_target_amount: Number(goalForm.target_amount),
+        p_request_id: crypto.randomUUID(),
+      })
+      if (saveError) throw saveError
+      setRefresh((value) => value + 1)
+    } catch (saveError) {
+      setGoalError(saveError.message || 'Não foi possível salvar a meta. Confira as datas e o valor informado.')
+    } finally { setGoalSaving(false) }
   }
 
   function selectPage(id) {
@@ -142,12 +172,12 @@ export function Dashboard({ session }) {
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
         <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} /> : active === 'customers' ? <CustomersPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} goalSummary={goalSummary} goalForm={goalForm} setGoalForm={setGoalForm} goalSaving={goalSaving} goalError={goalError} onSaveGoal={saveGoal} /> : active === 'customers' ? <CustomersPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
   </div>
 }
 
-function DashboardHome({ greeting, profileName, metrics, loading, error, setActive, onRefresh, projectionMonth, setProjectionMonth, projectionCards }) {
+function DashboardHome({ greeting, profileName, metrics, loading, error, setActive, onRefresh, projectionMonth, setProjectionMonth, projectionCards, goalSummary, goalForm, setGoalForm, goalSaving, goalError, onSaveGoal }) {
   const available = !loading && !error
   const shortDate = (value) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${value}T12:00:00`))
   const empty = (message) => <div className="loading-row">{loading ? 'Carregando…' : error ? 'Dados indisponíveis. Tente atualizar.' : message}</div>
@@ -163,6 +193,24 @@ function DashboardHome({ greeting, profileName, metrics, loading, error, setActi
     <section className="panel projection-panel">
       <div className="panel-heading projection-heading"><div><span className="eyebrow">Planejamento</span><h2>Projeção de recebimentos</h2><p>Veja o saldo previsto das parcelas por mês.</p></div><label className="month-picker">Mês de referência<input type="month" value={projectionMonth} onChange={(event) => setProjectionMonth(event.target.value)} /></label></div>
       <div className="projection-cards">{projectionCards.map((card) => <article className="projection-card" key={card.date.toISOString()}><div className="projection-card-top"><span>{card.label}</span><i>◷</i></div><strong>{loading ? '—' : money(card.amount)}</strong><small>{monthLabel(card.date)} · {card.count} {card.count === 1 ? 'parcela' : 'parcelas'}</small></article>)}</div>
+    </section>
+    <section className="panel goal-panel">
+      <div className="panel-heading goal-heading"><div><span className="eyebrow">Objetivo de vendas</span><h2>Meta do período</h2><p>Pedidos quitados no período entram automaticamente no progresso.</p></div><span className="goal-status">{goalSummary?.goal ? 'Meta ativa' : 'Nenhuma meta definida'}</span></div>
+      {goalError && <div className="alert error inline-alert" role="alert"><strong>Não foi possível salvar</strong><span>{goalError}</span></div>}
+      <div className="goal-layout">
+        <form className="goal-form" onSubmit={onSaveGoal}>
+          <label>Data inicial<input type="date" required value={goalForm.start_date} onChange={(event) => setGoalForm((current) => ({ ...current, start_date: event.target.value }))} /></label>
+          <label>Data final<input type="date" required value={goalForm.end_date} onChange={(event) => setGoalForm((current) => ({ ...current, end_date: event.target.value }))} /></label>
+          <label>Valor da meta<input type="number" min="0.01" step="0.01" required placeholder="Ex.: 10000,00" value={goalForm.target_amount} onChange={(event) => setGoalForm((current) => ({ ...current, target_amount: event.target.value }))} /></label>
+          <button className="primary-button" type="submit" disabled={goalSaving || loading}>{goalSaving ? 'Salvando…' : goalSummary?.goal ? 'Atualizar meta' : 'Definir meta'}</button>
+        </form>
+        {goalSummary?.goal ? <div className="goal-progress" aria-label="Progresso da meta">
+          <div className="goal-progress-top"><span>Progresso</span><strong>{Number(goalSummary.progress_percent || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</strong></div>
+          <div className="goal-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(goalSummary.progress_percent || 0)))}%` }} /></div>
+          <div className="goal-values"><div><strong>{money(goalSummary.paid_amount)}</strong><small>já recebido em {goalSummary.paid_orders} {Number(goalSummary.paid_orders) === 1 ? 'pedido pago' : 'pedidos pagos'}</small></div><div><strong>{money(goalSummary.remaining_amount)}</strong><small>restante para atingir a meta</small></div></div>
+          <small className="goal-period">Período: {shortDate(goalSummary.goal.start_date)} até {shortDate(goalSummary.goal.end_date)}</small>
+        </div> : <div className="goal-empty"><span className="empty-icon">✦</span><strong>Defina um objetivo para acompanhar as vendas pagas.</strong><small>O progresso será atualizado quando um pedido mudar para quitado.</small></div>}
+      </div>
     </section>
     <section className="dashboard-grid">
       <article className="panel flow-panel"><div className="panel-heading"><div><span className="eyebrow">Movimento</span><h2>Fluxo financeiro</h2></div><span className="muted-label">Últimos 7 dias</span></div>
