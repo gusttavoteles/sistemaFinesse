@@ -46,6 +46,10 @@
 > **Revisão 27 — 21/09/2026:** adicionada a visão de lucro estimativo na tela Produtos e estoque. O sistema calcula lucro unitário, margem média por produto e lucro estimado do estoque usando custo de aquisição e preço vigente. Esses indicadores são projeções de catálogo, não substituem o lucro realizado das vendas. Regras detalhadas na seção 20.7.
 > **Revisão 28 — 21/09/2026:** adicionada a meta de vendas na Visão geral. A master informa início, fim e valor do objetivo; o banco mantém uma única meta ativa e calcula automaticamente o progresso a partir dos pedidos quitados no período. O valor de um pedido entra uma única vez quando seu `payment_status` passa a `paid`, inclusive quando a quitação ocorre pela última parcela. Migration: `20260921000800_sales_goals.sql`.
 
+> **Revisão 29 — 22/09/2026:** revisado o tratamento de fotos. O navegador pode receber formatos de imagem que consiga decodificar, mas o sistema não promete suporte universal a todo formato existente. Antes do upload, a foto é convertida para WebP, sem ampliar a imagem, com dimensão máxima de 2400 px no maior lado e tentativa de qualidade 90%; reduções adicionais de qualidade/dimensão são aplicadas somente se necessário para ficar abaixo de 5 MiB. O arquivo original não é mantido. O download autenticado permite escolher JPG ou PNG; JPG usa fundo branco quando a imagem possui transparência, e PNG preserva transparência. A conversão não recupera qualidade que já tenha sido perdida no arquivo original. Não foi necessária migration: o caminho da imagem e a tabela `imagens_produtos` permanecem os mesmos. Regras detalhadas na seção 20.9.
+
+> **Revisão 30 — 22/09/2026:** adotada a logo oficial enviada pelo proprietário. A arte é versionada em `src/assets/finesse-logo.png`, exibida sobre fundo preto e aplicada à tela de login, ao menu lateral, ao cabeçalho móvel, ao primeiro acesso e ao carregamento inicial. O CSS somente enquadra a imagem removendo margens pretas vazias; não há redesenho, alteração do texto ou geração automática da marca. Regras detalhadas na seção 20.10.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1267,7 +1271,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 ### 20.2 Fotos privadas
 
 - Cada foto vinculada à peça terá ação Baixar foto, usando sessão autenticada no bucket privado `product-images`; não tornar o bucket público.
-- Upload mantém JPEG/PNG/WebP e limite de 5 MiB. Adicionar foto durante edição preserva as fotos anteriores. Falha da foto deve ser informada separadamente do sucesso do cadastro, sem incentivar cadastro duplicado.
+- O arquivo original pode ser um formato de imagem que o navegador consiga decodificar; antes do upload ele é normalizado para WebP, com limite de 25 MiB para o original e 5 MiB para a versão armazenada. Adicionar foto durante edição preserva as fotos anteriores. Falha da foto deve ser informada separadamente do sucesso do cadastro, sem incentivar cadastro duplicado. Os detalhes de conversão e download estão na seção 20.8.
 
 ### 20.3 Pedido e cobrança vinculada
 
@@ -1336,3 +1340,17 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - A gravação usa a RPC protegida `save_sales_goal(date,date,numeric,uuid)`, valida o período e o valor, exige sessão master válida e é idempotente pelo `p_request_id`.
 - A tabela `metas_vendas` possui RLS, acesso de leitura apenas para equipe autorizada e alterações somente pela RPC. Cada criação/alteração é registrada na auditoria.
 - Implementação: `src/app/Dashboard.jsx`, `src/styles.css` e `supabase/migrations/20260921000800_sales_goals.sql`.
+
+### 20.9 Normalização, compressão e download de fotos
+
+- O arquivo selecionado deve ser uma imagem que o navegador consiga decodificar. A interface usa `accept="image/*"`, mas formatos específicos podem depender do navegador; arquivos que não puderem ser lidos são rejeitados com mensagem clara. O limite do arquivo original antes do processamento é 25 MiB, para evitar processamento excessivo no navegador.
+- O processamento ocorre no frontend antes do upload. O sistema desenha a imagem em canvas, aplica a orientação disponível, preserva a proporção e nunca aumenta as dimensões originais.
+- A versão armazenada é sempre WebP (`image/webp`) com nome terminado em `.webp`. A dimensão máxima é 2400 px no maior lado. A primeira tentativa usa qualidade 90%; se o resultado ultrapassar o limite do bucket, o sistema reduz progressivamente a qualidade e, depois, a dimensão para 2000 px e 1600 px. A versão final deve ficar em até 5 MiB, limite do bucket privado `product-images`.
+- O arquivo original não é enviado nem salvo no Supabase. Portanto, a regra reduz armazenamento, mas não garante restauração da qualidade original depois de uma conversão com perdas. Se no futuro for necessário preservar o original, será preciso uma decisão própria de armazenamento adicional e custo.
+- A conversão é aplicada também às imagens antigas no momento do download, sem regravar o arquivo do bucket. Cada download autenticado permite escolher `JPG` ou `PNG`:
+  - `JPG`: usa qualidade 92% e preenche transparência com branco, porque JPG não possui canal alfa;
+  - `PNG`: preserva transparência e não aplica compressão com perdas.
+- O cadastro/edição mantém a foto anterior quando uma nova foto é adicionada. Se a conversão, o upload ou a vinculação falhar, o produto continua salvo sem incentivar cadastro duplicado; a interface informa a falha separadamente. Se a vinculação falhar depois do upload, o sistema tenta remover o objeto órfão do bucket.
+- A programação semanal de conteúdo usa o mesmo arquivo WebP privado e converte cada download para o formato escolhido na tela. A seleção aleatória, a regra de cinco fotos por dia e o bloqueio de repetição semanal não são alterados.
+- Imagens animadas não têm sua animação garantida: quando o navegador as decodifica como um quadro, a versão normalizada será uma imagem estática.
+- Implementação: `src/lib/imageProcessing.js`, `src/app/ProductsPage.jsx`, `src/app/ContentPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração de tabela. A regra deve ser atualizada neste documento antes de qualquer mudança futura nos formatos, limites, qualidade ou retenção do original.

@@ -60,3 +60,5 @@ O fluxo de recuperação de senha usa `VITE_AUTH_REDIRECT_URL`. O valor padrão 
 Se houver muitas solicitações seguidas, o provedor de autenticação pode aplicar um limite temporário de envio. Nesse caso, aguarde alguns minutos antes de solicitar outro e-mail.
 
 O comando `npm run build` gera `dist/` e também copia o `index.html` compilado e os assets para a raiz do repositório. Assim, o GitHub Pages configurado para publicar o ramo `main` pela raiz consegue localizar a entrada estática da aplicação.
+
+As fotos de produtos são normalizadas no navegador para WebP otimizado antes do envio ao bucket privado e podem ser baixadas em JPG ou PNG. Os limites, a política de transparência e as limitações de qualidade estão documentados na seção 20.8 de `DOCUMENTACAO-SISTEMA-FINESSE-SILVER.md`.
