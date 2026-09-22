@@ -50,7 +50,7 @@
 
 > **Revisão 30 — 22/09/2026:** adotada a logo oficial enviada pelo proprietário. A arte é versionada em `src/assets/finesse-logo.png`, exibida sobre fundo preto e aplicada à tela de login, ao menu lateral, ao cabeçalho móvel, ao primeiro acesso e ao carregamento inicial. O CSS somente enquadra a imagem removendo margens pretas vazias; não há redesenho, alteração do texto ou geração automática da marca. Regras detalhadas na seção 20.10.
 
-> **Revisão 28 — 22/09/2026:** adotada a logo oficial enviada pelo proprietário. A arte é versionada em `src/assets/finesse-logo.png`, exibida sobre fundo preto e aplicada à tela de login, ao menu lateral, ao cabeçalho móvel, ao primeiro acesso e ao carregamento inicial. O CSS somente enquadra a imagem removendo margens pretas vazias; não há redesenho, alteração do texto ou geração automática da marca. Regras detalhadas na seção 20.9.
+> **Revisão 31 — 22/09/2026:** refinada a tela de login para integrar a logo preta ao painel visual. A direção escolhida é preto profundo com tipografia branca, detalhes dourados e fundo da logo sem borda visível; o marrom fica apenas como nuance sutil do gradiente, não como cor dominante. A arte original permanece preservada e o ajuste é feito por composição CSS. Regras detalhadas na seção 20.11.
 
 ## 1. Visão do produto
 
@@ -1357,7 +1357,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Imagens animadas não têm sua animação garantida: quando o navegador as decodifica como um quadro, a versão normalizada será uma imagem estática.
 - Implementação: `src/lib/imageProcessing.js`, `src/app/ProductsPage.jsx`, `src/app/ContentPage.jsx` e `src/modules.css`. Não foi necessária migration ou alteração de tabela. A regra deve ser atualizada neste documento antes de qualquer mudança futura nos formatos, limites, qualidade ou retenção do original.
 
-### 20.9 Identidade visual e logo oficial
+### 20.10 Identidade visual e logo oficial
 
 - A logo oficial da Finesse é o arquivo fornecido pelo proprietário e versionado em `src/assets/finesse-logo.png`.
 - A arte deve ser exibida com fundo preto (`#000`), preservando a aparência prateada e o texto original da imagem.
@@ -1365,3 +1365,12 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - O enquadramento é feito apenas por CSS, usando `object-fit: cover` e posicionamento vertical controlado para ocultar margens pretas vazias da imagem quadrada. O arquivo original não é editado nem redesenhado.
 - A logo não deve ser substituída por texto, símbolo `F`, ícone genérico ou outra versão sem registrar nova revisão neste documento.
 - Não há alteração de banco, autenticação ou regra de negócio. A implementação está em `src/app/App.jsx`, `src/app/AuthScreen.jsx`, `src/app/Dashboard.jsx`, `src/app/PasswordSetupScreen.jsx`, `src/styles.css` e `src/assets/finesse-logo.png`.
+
+### 20.11 Composição visual da tela de login
+
+- A direção visual aprovada para o acesso é **preto profundo**, porque integra melhor o fundo preto da logo com a proposta de joias em prata e evita que a arte pareça um cartão preto sobre um painel cinza.
+- A paleta da tela usa painel preto, logo com fundo preto, texto branco/prateado e dourado discreto para os rótulos de destaque. O marrom não é a cor dominante; aparece somente em uma nuance quase imperceptível do gradiente para evitar uma tela chapada.
+- A logo mantém a arte original enviada pelo proprietário. Não é permitido redesenhar letras, trocar o texto da marca ou gerar uma nova logo sem aprovação e nova revisão documental.
+- O enquadramento da logo remove visualmente margens pretas vazias por CSS, mantém o painel sem borda aparente e preserva a leitura da marca em desktop e telas menores.
+- O texto de apresentação continua separado da logo, com hierarquia: rótulo dourado, chamada principal branca e descrição em cinza-prateado. O rodapé permanece discreto para não competir com a marca.
+- A implementação está em `src/styles.css`; não altera autenticação, dados, banco ou regras operacionais.

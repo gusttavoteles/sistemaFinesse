@@ -61,6 +61,6 @@ Se houver muitas solicitações seguidas, o provedor de autenticação pode apli
 
 O comando `npm run build` gera `dist/` e também copia o `index.html` compilado e os assets para a raiz do repositório. Assim, o GitHub Pages configurado para publicar o ramo `main` pela raiz consegue localizar a entrada estática da aplicação.
 
-As fotos de produtos são normalizadas no navegador para WebP otimizado antes do envio ao bucket privado e podem ser baixadas em JPG ou PNG. Os limites, a política de transparência e as limitações de qualidade estão documentados na seção 20.8 de `DOCUMENTACAO-SISTEMA-FINESSE-SILVER.md`.
+As fotos de produtos são normalizadas no navegador para WebP otimizado antes do envio ao bucket privado e podem ser baixadas em JPG ou PNG. Os limites, a política de transparência e as limitações de qualidade estão documentados na seção 20.9 de `DOCUMENTACAO-SISTEMA-FINESSE-SILVER.md`.
 
 A identidade visual usa a logo oficial versionada em `src/assets/finesse-logo.png`, com fundo preto, na tela de login e nos menus. A regra está documentada na seção 20.9.
