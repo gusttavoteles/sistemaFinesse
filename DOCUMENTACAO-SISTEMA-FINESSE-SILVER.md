@@ -62,6 +62,8 @@
 
 > **Revisão 36 — 23/09/2026:** adicionados aniversário no cadastro do cliente, agenda de aniversários até 30 dias e modelo manual de WhatsApp oferecendo 10% na próxima compra; tela **Lucro estimado** para itens de pedidos vendidos usando receita líquida, custo histórico do item e R$ 3,00 por unidade; sugestão de preço `custo + 120% do custo + R$ 3,00`, sem sobrescrever o preço informado; e aviso de versão 1.1.0 dispensável por navegador. `clientes.birth_date` já existia no schema; não foi criada migration. Regras completas nas seções 20.12–20.14.
 
+> **Revisão 37 — 23/09/2026:** correção solicitada pelo proprietário: a margem adicional para sugerir o preço é **140% do custo**, e não 120%. Fórmula corrigida para `custo + 1,4 × custo + R$ 3,00`; o lucro estimado das vendas não muda. Teste atualizado (custo de R$ 100,00 gera sugestão de R$ 243,00).
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1408,7 +1410,7 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - Regra operacional: **lucro estimado = venda líquida do item − custo histórico − (R$ 3,00 × quantidade)**. O custo operacional aparece em indicador separado. Pode haver lucro negativo. A tela informa as peças vendidas, quantidade, valor vendido, valor pago, custo operacional agregado e lucro estimado.
 - Custo histórico ausente/igual a zero não é interpretado como peça grátis: o item continua visível, mas é excluído do total de lucro e identificado como **Não informado**, com aviso. Pedidos `pending`, `canceled`, `returned` e `partially_returned` não entram. Como o schema não armazena quantidade devolvida por item, excluir todo o pedido parcialmente devolvido evita atribuir lucro incerto.
 - A métrica não é lucro contábil nem caixa recebido: não depende do status de pagamento e não desconta imposto, taxa do meio de pagamento, frete, custo financeiro ou despesas além dos R$ 3,00 operacionais definidos. Desconto do item e desconto geral do pedido são considerados.
-- Na tela de cadastro de peça, o preço sugerido é uma referência não vinculante segundo a leitura operacional confirmada para esta versão: `custo + 1,2 × custo + R$ 3,00` (custo + 120% do custo + operação). O preço de venda continua manual; a sugestão nunca substitui o valor digitado nem altera produtos existentes.
+- Na tela de cadastro de peça, o preço sugerido é uma referência não vinculante segundo a regra corrigida pelo proprietário: `custo + 1,4 × custo + R$ 3,00` (custo + 140% do custo + operação). Exemplo: custo de R$ 100,00 gera sugestão de R$ 243,00. O preço de venda continua manual; a sugestão nunca substitui o valor digitado nem altera produtos existentes. O lucro estimado das vendas permanece `venda líquida − custo histórico − R$ 3,00 por unidade`.
 - Implementação: `src/app/EstimatedProfitPage.jsx`, `src/lib/estimatedProfit.js`, `src/app/ProductsPage.jsx`, `src/app/Dashboard.jsx` e `src/modules.css`. Usa consultas autenticadas nas tabelas existentes e snapshots; sem mudança de schema ou migration.
 
 ### 20.14 Aviso de versão

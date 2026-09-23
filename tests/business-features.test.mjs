@@ -25,9 +25,9 @@ test('birthday agenda uses the business calendar in America/Sao_Paulo', () => {
   assert.equal(result.daysUntil, 0)
 })
 
-test('Finesse suggested sale price is purchase cost plus 120 percent and R$ 3 operation cost', () => {
+test('Finesse suggested sale price is purchase cost plus 140 percent and R$ 3 operation cost', () => {
   assert.equal(OPERATIONAL_COST_PER_PIECE, 3)
-  assert.equal(suggestedSalePrice(100), 223)
+  assert.equal(suggestedSalePrice(100), 243)
   assert.equal(suggestedSalePrice(0), null)
 })
 

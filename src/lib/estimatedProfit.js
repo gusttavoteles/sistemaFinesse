@@ -3,7 +3,7 @@ export const OPERATIONAL_COST_PER_PIECE = 3
 export function suggestedSalePrice(costValue) {
   const cost = Number(costValue)
   if (!Number.isFinite(cost) || cost <= 0) return null
-  return Math.round((cost + cost * 1.2 + OPERATIONAL_COST_PER_PIECE) * 100) / 100
+  return Math.round((cost + cost * 1.4 + OPERATIONAL_COST_PER_PIECE) * 100) / 100
 }
 
 export function estimateSoldItem(item, order) {
