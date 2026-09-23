@@ -9,14 +9,20 @@ import { OrdersPage } from './OrdersPage'
 import { FinancePage } from './FinancePage'
 import { ContentPage } from './ContentPage'
 import { WinbackPage } from './WinbackPage'
+import { BirthdaysPage } from './BirthdaysPage'
+import { EstimatedProfitPage } from './EstimatedProfitPage'
+
+const releaseKey = 'finesse.release.v1.1.0.dismissed'
 
 const navigation = [
   { id: 'dashboard', label: 'Visão geral', icon: '⌂' },
   { id: 'orders', label: 'Pedidos', icon: '▣' },
   { id: 'customers', label: 'Clientes', icon: '♧' },
+  { id: 'birthdays', label: 'Aniversários', icon: '✦' },
   { id: 'winback', label: 'Reativação', icon: '↻' },
   { id: 'receivables', label: 'Cobranças', icon: '◷' },
   { id: 'inventory', label: 'Produtos e estoque', icon: '◇' },
+  { id: 'profit', label: 'Lucro estimado', icon: '↗' },
   { id: 'finance', label: 'Financeiro', icon: '◷' },
   { id: 'content', label: 'Conteúdo', icon: '✦' },
 ]
@@ -62,6 +68,12 @@ export function Dashboard({ session }) {
   const [goalForm, setGoalForm] = useState({ start_date: localDateKey(), end_date: localDateKey(new Date(Date.now() + 30 * 86400000)), target_amount: '' })
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalError, setGoalError] = useState('')
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
+
+  useEffect(() => {
+    try { setShowReleaseNotes(window.localStorage.getItem(releaseKey) !== 'yes') }
+    catch { setShowReleaseNotes(true) }
+  }, [])
 
   useEffect(() => {
     if (active !== 'dashboard') return undefined
@@ -142,6 +154,11 @@ export function Dashboard({ session }) {
     setMenuOpen(false)
   }
 
+  function dismissReleaseNotes() {
+    try { window.localStorage.setItem(releaseKey, 'yes') } catch { /* A sessão atual ainda pode dispensar o aviso. */ }
+    setShowReleaseNotes(false)
+  }
+
   const projectionCards = [0, 1, 2].map((offset) => {
     const date = addMonths(monthDate(projectionMonth), offset)
     const key = monthKey(date)
@@ -171,10 +188,11 @@ export function Dashboard({ session }) {
         <button className="menu-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><span /><span /><span /></button>
         <div className="mobile-brand"><img className="brand-logo-image" src={logo} alt="Finesse — joias em prata 925" /></div>
         <div className="breadcrumb"><span>Finesse Silver</span><b>/</b><strong>{navigation.find((item) => item.id === active)?.label}</strong></div>
-        <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Notificações">♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
+        <div className="topbar-actions"><time>{date.format(new Date())}</time><span className="topbar-divider" /><button className="icon-button" aria-label="Abrir avisos de aniversários" title="Avisos de aniversários" onClick={() => selectPage('birthdays')}>♢<i /></button><button className="top-avatar">{initials(profileName)}</button></div>
       </header>
-      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} goalSummary={goalSummary} goalForm={goalForm} setGoalForm={setGoalForm} goalSaving={goalSaving} goalError={goalError} onSaveGoal={saveGoal} /> : active === 'customers' ? <CustomersPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
+      {active === 'dashboard' ? <DashboardHome greeting={greeting} profileName={profileName} metrics={metrics} loading={loading} error={error} setActive={selectPage} onRefresh={() => setRefresh((value) => value + 1)} projectionMonth={projectionMonth} setProjectionMonth={setProjectionMonth} projectionCards={projectionCards} goalSummary={goalSummary} goalForm={goalForm} setGoalForm={setGoalForm} goalSaving={goalSaving} goalError={goalError} onSaveGoal={saveGoal} /> : active === 'customers' ? <CustomersPage /> : active === 'birthdays' ? <BirthdaysPage /> : active === 'profit' ? <EstimatedProfitPage /> : active === 'winback' ? <WinbackPage /> : active === 'receivables' ? <ReceivablesPage orderId={orderFilter} onClearOrder={() => setOrderFilter(null)} /> : active === 'inventory' ? <ProductsPage /> : active === 'orders' ? <OrdersPage onOpenReceivables={(id) => { setOrderFilter(id); setActive('receivables') }} /> : active === 'finance' ? <FinancePage /> : active === 'content' ? <ContentPage session={session} /> : <ComingSoon title={navigation.find((item) => item.id === active)?.label} />}
     </main>
+    {showReleaseNotes && <div className="release-backdrop"><section className="release-dialog" role="dialog" aria-modal="true" aria-labelledby="release-title"><span className="eyebrow">Atualização Finesse Silver · versão 1.1.0</span><h2 id="release-title">Novidades para sua loja</h2><p className="release-intro">Esta versão traz ferramentas para acompanhar clientes e entender melhor o resultado das vendas.</p><ul><li><strong>Avisos de aniversário:</strong> cadastre a data da cliente e encontre os próximos aniversários com uma mensagem pronta oferecendo 10% de desconto.</li><li><strong>Lucro estimado:</strong> consulte peças vendidas, valor líquido, custo preservado no pedido e estimativa após R$ 3,00 de custo operacional por unidade.</li><li><strong>Preço sugerido:</strong> o cadastro da peça exibe uma sugestão com a regra de preço Finesse, sem mudar o valor informado automaticamente.</li></ul><small>As mensagens continuam manuais e precisam ser revisadas e enviadas por você no WhatsApp.</small><button className="primary-button" onClick={dismissReleaseNotes}>Não mostrar novamente</button></section></div>}
   </div>
 }
 

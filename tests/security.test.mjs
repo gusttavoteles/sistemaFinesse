@@ -218,6 +218,13 @@ test('canonical edits propagate while historical product snapshots and financial
   await denied('update public.pedidos set discount_amount=0 where id=$1',[o]);
   await denied('update public.contas_financeiras set initial_balance=999 where id=$1',[account]);
 }));
+test('master can set and clear the optional birthday on the existing customer record',()=>tx(async()=>{
+  await asUser(); const {c}=await linkedOrder();
+  await db.query("update public.clientes set birth_date='1990-10-23' where id=$1",[c]);
+  assert.equal((await db.query('select birth_date::text d from public.clientes where id=$1',[c])).rows[0].d,'1990-10-23');
+  await db.query('update public.clientes set birth_date=null where id=$1',[c]);
+  assert.equal((await db.query('select birth_date from public.clientes where id=$1',[c])).rows[0].birth_date,null);
+}));
 test('order customer edit synchronizes agreement but blocks reassignment after receipt',()=>tx(async()=>{
   await asUser(); const {o,c,a,installments}=await linkedOrder();
   const next=(await db.query("insert into public.clientes(name) values('Outra cliente') returning id")).rows[0].id;
@@ -240,7 +247,7 @@ test('due date correction audits reason, changes only one installment and denies
 }));
 test('dashboard includes every paid transaction, excludes pending/canceled and refreshes canonical names',()=>tx(async()=>{
   await asUser(); const {o,c,installments}=await linkedOrder();
-  await db.query("select public.record_installment_payment($1,10,'pix',$2,gen_random_uuid(),(((now() at time zone 'America/Sao_Paulo')::date + time '12:00') at time zone 'America/Sao_Paulo'))",[installments[0].id,account]);
+  await db.query("select public.record_installment_payment($1,10,'pix',$2,gen_random_uuid(),now()-interval '1 minute')",[installments[0].id,account]);
   await db.exec('reset role');
   await db.query('update public.contas_financeiras set initial_balance=50 where id=$1',[account]);
   await db.query("insert into public.transacoes_financeiras(financial_account_id,type,direction,status,amount,description,transaction_date) select $1,'income','in','paid',1,'Teste agregado',(now() at time zone 'America/Sao_Paulo')::date from generate_series(1,1100)",[account]);

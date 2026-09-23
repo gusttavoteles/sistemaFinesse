@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { pixKey, receivableMessage, whatsappUrl, winbackMessages } from '../src/lib/communicationMessages.js'
+import { birthdayMessage, pixKey, receivableMessage, whatsappUrl, winbackMessages } from '../src/lib/communicationMessages.js'
 
 test('communication templates keep the PIX key and requested emojis', () => {
   const billing = receivableMessage({ name: 'Ana', amount: 'R$ 50,00', dueDate: '30/09/2026' })
@@ -41,4 +41,12 @@ test('WhatsApp link carries the complete Unicode message and normalizes the phon
 test('WhatsApp URL is not created when a usable phone number is missing', () => {
   assert.equal(whatsappUrl('', 'mensagem'), '')
   assert.equal(whatsappUrl('---', 'mensagem'), '')
+})
+
+test('birthday message offers the manually applied ten percent discount without inventing an expiration', () => {
+  const message = birthdayMessage('Joana')
+  assert.match(message, /Feliz aniversário/)
+  assert.match(message, /10% de desconto/)
+  assert.match(message, /Joana/)
+  assert.doesNotMatch(message, /validade|vence em|cupom/i)
 })

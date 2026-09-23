@@ -4,6 +4,7 @@ const emoji = {
   whiteHeart: '\u{1F90D}',
   ring: '\u{1F48D}',
   card: '\u{1F4B3}',
+  cake: '\u{1F382}',
 }
 
 const option = (number) => `${number}\uFE0F\u20E3`
@@ -30,6 +31,15 @@ ${emoji.card} Você pode realizar o pagamento pela chave PIX abaixo:
 Caso o pagamento já tenha sido efetuado, por favor, desconsidere esta mensagem e, se possível, envie o comprovante. ${emoji.gem}
 Se precisar de alguma informação ou desejar combinar uma nova data, estamos à disposição para ajudar. ${emoji.whiteHeart}
 Atenciosamente,
+*Finesse Joias | Prata 925* ${emoji.sparkle}`)
+}
+
+export function birthdayMessage(name = 'cliente') {
+  return normalizeWhatsAppText(`${emoji.sparkle} Olá, ${name}! Hoje é um dia muito especial: o seu aniversário! ${emoji.cake}
+A Finesse Joias deseja a você um novo ciclo cheio de alegria, amor e momentos brilhantes. ${emoji.whiteHeart}
+Para comemorar, queremos presentear você com 10% de desconto na sua próxima compra de Prata 925. ${emoji.gem}
+Quando escolher suas peças, fale com a gente para aplicarmos o desconto.
+Feliz aniversário!
 *Finesse Joias | Prata 925* ${emoji.sparkle}`)
 }
 

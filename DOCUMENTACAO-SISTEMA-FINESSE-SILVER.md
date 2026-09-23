@@ -60,6 +60,8 @@
 
 > **Revisão 35 — 22/09/2026:** corrigido o fluxo completo dos botões de cobrança e reativação: agora cada ação gera a mensagem com os dados atuais do cliente e abre `wa.me` com o texto completo em parâmetro UTF-8 URL-encoded. A cópia para a área de transferência permanece como alternativa; o texto deve ser conferido no WhatsApp antes do envio manual. Adicionados testes para validar telefone, decodificação exata de emojis/acentos/quebras de linha e ausência de link sem telefone.
 
+> **Revisão 36 — 23/09/2026:** adicionados aniversário no cadastro do cliente, agenda de aniversários até 30 dias e modelo manual de WhatsApp oferecendo 10% na próxima compra; tela **Lucro estimado** para itens de pedidos vendidos usando receita líquida, custo histórico do item e R$ 3,00 por unidade; sugestão de preço `custo + 120% do custo + R$ 3,00`, sem sobrescrever o preço informado; e aviso de versão 1.1.0 dispensável por navegador. `clientes.birth_date` já existia no schema; não foi criada migration. Regras completas nas seções 20.12–20.14.
+
 ## 1. Visão do produto
 
 > **Revisão 10 — 18/09/2026:** acesso restrito a dois usuários master, com privilégios operacionais iguais. Esta decisão substitui a divisão anterior em administrador, gerente, operador e financeiro. A seção 18 define os requisitos de segurança e distingue implementação de pendências operacionais.
@@ -1388,3 +1390,30 @@ O frontend já possui a fundação de autenticação, dashboard e módulos opera
 - O enquadramento da logo remove visualmente margens pretas vazias por CSS, mantém o painel sem borda aparente e preserva a leitura da marca em desktop e telas menores.
 - O texto de apresentação continua separado da logo, com hierarquia: rótulo dourado, chamada principal branca e descrição em cinza-prateado. O rodapé permanece discreto para não competir com a marca.
 - A implementação está em `src/styles.css`; não altera autenticação, dados, banco ou regras operacionais.
+
+### 20.12 Aniversários e contato manual
+
+- O cadastro e a edição de clientes incluem `birth_date`, campo opcional que já existe em `public.clientes`; a aplicação não precisa de migration para esta funcionalidade. Clientes sem data continuam válidos e não aparecem na agenda.
+- A aba **Aniversários** consulta clientes com data informada, ativos ou inativos, e mostra abas Hoje, Próximos 7 dias e Próximos 30 dias. O padrão é 30 dias, incluindo o dia atual. A ordem é data mais próxima e, em empate, nome.
+- O cálculo compara mês e dia no fuso da loja `America/Sao_Paulo`, sem deslocar a data armazenada. Para nascimento em 29/02, em ano sem dia 29 o aviso ocorre em 01/03. A agenda é informativa; o sino do cabeçalho abre a tela de Aniversários, mas não envia alertas fora da aplicação nem cria mensagens automaticamente.
+- A mensagem pronta parabeniza a cliente e oferece 10% de desconto na próxima compra de Prata 925. O modelo não promete prazo de validade, não gera cupom e não altera o preço/pedido: os 10% são conferidos e aplicados manualmente pela master no momento da venda. O texto pode ser copiado ou aberto preenchido no WhatsApp; o envio permanece manual.
+- O cadastro continua armazenando a data de nascimento completa como data opcional, conforme a coluna existente. O acesso continua sujeito à sessão master e às políticas RLS da tabela; não se coleta dado adicional.
+- Implementação: `src/app/CustomersPage.jsx`, `src/app/BirthdaysPage.jsx`, `src/lib/customerDates.js`, `src/lib/communicationMessages.js`, `src/app/Dashboard.jsx` e `src/modules.css`. Sem mudança de schema ou migration.
+
+### 20.13 Lucro estimado de vendas realizadas
+
+- A aba **Lucro estimado** é separada da estimativa de catálogo e estoque da seção 20.7. Ela lista os itens dos pedidos com status `sold`, `shipped` ou `completed`, usando data da venda no fuso `America/Sao_Paulo`; o filtro inicial é o mês atual e existe a opção **Todo o período**.
+- Valor vendido por item usa `itens_pedidos.total_amount`, que já considera desconto próprio do item. O desconto geral do pedido é distribuído proporcionalmente entre os itens pelo valor do subtotal. Frete não é receita do produto e fica fora do cálculo.
+- Valor pago pela peça para esta estimativa é `unit_cost_snapshot × quantity`, preservado no item do pedido. Editar o produto hoje não reescreve o custo histórico da venda.
+- Regra operacional: **lucro estimado = venda líquida do item − custo histórico − (R$ 3,00 × quantidade)**. O custo operacional aparece em indicador separado. Pode haver lucro negativo. A tela informa as peças vendidas, quantidade, valor vendido, valor pago, custo operacional agregado e lucro estimado.
+- Custo histórico ausente/igual a zero não é interpretado como peça grátis: o item continua visível, mas é excluído do total de lucro e identificado como **Não informado**, com aviso. Pedidos `pending`, `canceled`, `returned` e `partially_returned` não entram. Como o schema não armazena quantidade devolvida por item, excluir todo o pedido parcialmente devolvido evita atribuir lucro incerto.
+- A métrica não é lucro contábil nem caixa recebido: não depende do status de pagamento e não desconta imposto, taxa do meio de pagamento, frete, custo financeiro ou despesas além dos R$ 3,00 operacionais definidos. Desconto do item e desconto geral do pedido são considerados.
+- Na tela de cadastro de peça, o preço sugerido é uma referência não vinculante segundo a leitura operacional confirmada para esta versão: `custo + 1,2 × custo + R$ 3,00` (custo + 120% do custo + operação). O preço de venda continua manual; a sugestão nunca substitui o valor digitado nem altera produtos existentes.
+- Implementação: `src/app/EstimatedProfitPage.jsx`, `src/lib/estimatedProfit.js`, `src/app/ProductsPage.jsx`, `src/app/Dashboard.jsx` e `src/modules.css`. Usa consultas autenticadas nas tabelas existentes e snapshots; sem mudança de schema ou migration.
+
+### 20.14 Aviso de versão
+
+- A primeira abertura autenticada da versão 1.1.0 mostra uma tela modal com as novas funcionalidades de aniversário, lucro estimado e sugestão de preço.
+- O botão **Não mostrar novamente** dispensa o modal e grava a preferência no `localStorage` do navegador, identificada pela versão. A preferência persiste após fechar a sessão nesse navegador e não é sincronizada entre dispositivos; uma versão futura usa uma chave nova e pode mostrar novas notas.
+- O modal só existe dentro da aplicação autenticada, não muda contas, registros ou regras de operação, e não armazena dados pessoais. Se o armazenamento local estiver indisponível, o modal pode reaparecer ao iniciar outra sessão.
+- Implementação em `src/app/Dashboard.jsx` e `src/modules.css`; nenhuma migration necessária.
