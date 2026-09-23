@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const isSupabaseConfigured = Boolean(url && anonKey && !anonKey.includes('coloque_'))
-export const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://gusttavoteles.github.io/sistemaFinesse/'
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey && !supabaseAnonKey.includes('coloque_'))
+export const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://gusttavoteles.github.io/sistemaFinesse/painel.html'
 
 export const supabase = isSupabaseConfigured
-  ? createClient(url, anonKey, {
+  ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         // A sessão não deve sobreviver a reload/back-forward do navegador.
         // Enquanto a aba permanecer aberta, o Supabase ainda pode renovar o token.
